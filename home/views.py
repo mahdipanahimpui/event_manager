@@ -7,7 +7,6 @@ from rest_framework.views import APIView
 from rest_framework.generics import get_object_or_404
 
 
-
 from .serializers import (
     EventSerializer,
     ParticipantSerializer,
@@ -67,5 +66,13 @@ class MeetingViewSet(viewsets.ModelViewSet):
     queryset = Meeting.objects.all()
     serializer_class = MeetingSerializer
     pagination_class = MeetingPagination 
+
+# ----------------------------------------------------------------------
+class SendEmailView(APIView):
+
+    def post(self, request):
+        pass
+                
+
 
 

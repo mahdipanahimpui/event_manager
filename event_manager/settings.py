@@ -133,3 +133,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # to use media file
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_HOST_USER = 'aly.hasany.80@gmail.com'
+EMAIL_HOST_PASSWORD = 'njud xuya lddr cmar'
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+
+# njud xuya lddr cmar

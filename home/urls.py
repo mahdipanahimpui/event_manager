@@ -9,6 +9,7 @@ urlpatterns = [
     path('events/<int:event_id>/participants/', views.ParticipantListCreateView.as_view(), name='participant_list_create_view'),
     path('events/<int:event_id>/participants/<int:participant_id>/', views.ParticipantRetrieveUpdateDestroyView.as_view(), name='participant_retrieve_update_destroy_view'), 
     # path('events/<int:event_id>/attended/<int:participant_id>', views.ParticipantsAttendanceView.as_view(), name='participants_attendance view')
+    path('events/send_email/', views.SendEmailView.as_view(), name='send_email_view')
 
 ]
 
