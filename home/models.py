@@ -6,6 +6,34 @@ from io import BytesIO
 from django.core.files import File
 from PIL import Image, ImageDraw
 
+from django.core.exceptions import ValidationError
+
+
+
+
+
+# ------------------------------------------------------------------------------------- 
+def validate_uniqueness_by_event(event, field, field_name):
+    existing_fields = Participant.objects.filter(event=event).values_list(f'{field_name}', flat=True)
+    if field in existing_fields:
+        raise ValueError(f"Participant with the same {field_name} already exists for this event.")
+    
+
+
+def qr_code_generator(id, qr_code_field):
+        qrcode_img = qrcode.make(f'{id}')
+        canvas = Image.new('RGB', (290, 290), 'white')
+        draw = ImageDraw.Draw(canvas)
+        canvas.paste(qrcode_img)
+        fname = f'qr_code-{id}.png'
+        buffer = BytesIO()
+        canvas.save(buffer, 'PNG')
+        qr_code_field.save(fname, File(buffer), save=False)
+        canvas.close()
+
+
+# ------------------------------------------------------------------
+# --------------------- MODELS ------------------------------------
 # ------------------------------------------------------------------
 class Event(models.Model):
     name = models.CharField(max_length=255, unique=True)
@@ -18,8 +46,8 @@ class Event(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     note = models.TextField(max_length=2000, null=True, blank=True)
-# -----------------------------------------------------------------
 
+# -----------------------------------------------------------------
 class Participant(models.Model):
     MEMBERSHIP_TYPE_CHOICES = (
         ('ordinary_author', 'ordinary_author'),
@@ -85,6 +113,19 @@ class Participant(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
+    def clean(self):
+        if Participant.objects.filter(event=self.event, phone_number=self.phone_number).exists():
+            raise ValidationError("Participant with the same phone number already exists for this event.")
+
+
+        if Participant.objects.filter(event=self.event, email_address=self.email_address).exists():
+             raise ValidationError("Participant with the same email address already exists for this event.")
+        
+        return super().clean()
+
+
+
+
     def save(self, *args, **kwargs):
         if self._state.adding: 
             validate_uniqueness_by_event(self.event, self.mobile_phone_number, 'mobile_phone_number')
@@ -112,40 +153,88 @@ class Meeting(models.Model):
     holding_place = models.TextField(max_length=500)
     participants = models.ManyToManyField(Participant, null=True, blank=True)
 
+    def __str__(self):
+        return f'cod: {self.code}  |  title: {self.title}'
+
+# ----------------------------------------------------------------------------------------
+class Survey(models.Model):
+    text = models.TextField(max_length=1000)
+    event = models.ForeignKey(Event, on_delete=models.CASCADE)
+    meeting = models.ForeignKey(Meeting, on_delete=models.CASCADE, null=True, blank=True)
+
+    def __str__(self):
+        return f'{self.pk}  |  {self.text}'
 
 
+# -----------------------------------------------------------------------------------------
+class Option(models.Model):
+    survey = models.ForeignKey(Survey, on_delete=models.CASCADE)
+    option_field = models.CharField(max_length=200)
 
+    def __str__(self):
+        return f'survey: {self.survey.pk}  |  option: {self.option_field}'
 
-
-
-
-
-
-
-
-
-
-
-
-
-# ------------------------------------------------------------------------------------- 
-def validate_uniqueness_by_event(event, field, field_name):
-    existing_fields = Participant.objects.filter(event=event).values_list(f'{field_name}', flat=True)
-    if field in existing_fields:
-        raise ValueError(f"Participant with the same {field_name} already exists for this event.")
+# ----------------------------------------------------------------------------------------
+class SelectedOption(models.Model):
     
+    participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
+    survey = models.ForeignKey(Survey, on_delete=models.CASCADE)
+    option = models.ForeignKey(Option, on_delete=models.CASCADE)
 
 
-def qr_code_generator(id, qr_code_field):
-        qrcode_img = qrcode.make(f'{id}')
-        canvas = Image.new('RGB', (290, 290), 'white')
-        draw = ImageDraw.Draw(canvas)
-        canvas.paste(qrcode_img)
-        fname = f'qr_code-{id}.png'
-        buffer = BytesIO()
-        canvas.save(buffer, 'PNG')
-        qr_code_field.save(fname, File(buffer), save=False)
-        canvas.close()
+
+    def clean(self):
+        print('*'*90)
+        print(self.survey.pk)
+        print(self.option.survey.pk)
+        if self.survey.pk != self.option.survey.pk:
+            raise ValidationError(f"the survey with id:'{self.survey.pk}' does not have option with id:'{self.option.pk}'")
+        
+        if SelectedOption.objects.filter(participant=self.participant, survey=self.survey).exists():
+            raise ValidationError("The participant has already answered this survey")
+        
+        return super().clean()
+
+    def __str__(self):
+        return f'participant: {self.participant.email_address}  |  survey: {self.survey.id}  |  option: {self.option.option_field}'
+
+
+# ------------------------------------------------------------------------------------------
+class Opinion(models.Model):
+    participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
+    survey = models.ForeignKey(Survey, on_delete=models.CASCADE)
+    opinion_text = models.TextField(max_length=1000)
+
+    def __str__(self):
+        return f'participant: {self.participant.email_address}  |  survey: {self.survey.pk}  |  opinion: {self.pk}'
+
+
+    class Meta:
+        unique_together = ('participant', 'survey')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

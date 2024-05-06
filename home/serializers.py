@@ -1,11 +1,14 @@
 from rest_framework import serializers
 from django.shortcuts import get_object_or_404
-import pyqrcode
-from pyqrcode import QRCode
+
 from home.models import (
     Event,
     Participant,
-    Meeting
+    Meeting,
+    Survey,
+    SelectedOption,
+    Opinion,
+    Option
 )
 
 # ---------------------------------------------------
@@ -137,9 +140,7 @@ class MeetingSerializer(serializers.ModelSerializer):
         except Event.DoesNotExist:
             pass
 
-
-        
-       
+ 
         return super().validate(attrs)
 
 
@@ -157,3 +158,52 @@ class MeetingSerializer(serializers.ModelSerializer):
             meeting.participants.remove(participant)
 
         return meeting
+    
+
+# -------------------------------------------------------------
+class SurveySerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Survey
+        fields = '__all__'
+
+# -------------------------------------------------------------
+class SurveyOptionSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Option
+        fields = '__all__'
+
+# ---------------------------------------------------------------
+class SurveyOpinionSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Opinion
+        fields = '__all__'
+
+# ---------------------------------------------------------------
+class SurveySelectOptionSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = SelectedOption
+        fields = '__all__'
+        
+
+    def validate(self, attrs):
+        survey = attrs.get('survey')
+        participant = attrs.get('participant')
+        option = attrs.get('option')
+
+
+        try:
+
+            if survey.pk != option.survey.pk:
+                raise serializers.ValidationError(f"the survey with id:'{survey.pk}' does not have option with id:'{option.pk}'")
+ 
+            if SelectedOption.objects.filter(survey=survey, participant=participant).exists():
+                raise serializers.ValidationError("The participant has already answered this survey")
+
+        except SelectedOption.DoesNotExist:
+            pass
+
+        return super().validate(attrs)

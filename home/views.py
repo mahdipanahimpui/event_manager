@@ -10,19 +10,31 @@ from rest_framework.generics import get_object_or_404
 from .serializers import (
     EventSerializer,
     ParticipantSerializer,
-    MeetingSerializer
+    MeetingSerializer,
+    SurveySerializer, 
+    SurveyOptionSerializer,
+    SurveyOpinionSerializer,
+    SurveySelectOptionSerializer
 )
 
 from utils.pagination import (
     EventPagination,
     ParticipantPagination,
     MeetingPagination,
+    SurveyPagination,
+    SurveyOptionPagination,
+    SurveyOpinionPagination,
+    SurveySelectOptionPagination
 )
 
 from .models import(
     Event,
     Participant,
     Meeting,
+    Survey,
+    Option,
+    Opinion,
+    SelectedOption
 )
 
 # -------------------------------------------------------------------
@@ -72,7 +84,81 @@ class SendEmailView(APIView):
 
     def post(self, request):
         pass
-                
+            
+
+# ----------------------------------------------------------------------
+class SurveyListCreateView(generics.ListCreateAPIView):
+    serializer_class = SurveySerializer
+    pagination_class = SurveyPagination
+
+    def get_queryset(self):
+        event_id = self.kwargs['event_id']
+        meeting_id = self.kwargs.get('meeting_id', None)
+        queryset = Survey.objects.filter(event__id=event_id, meeting__id=meeting_id)
+        return queryset
+    
+# ----------------------------------------------------------------------------
+class SurveyRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = SurveySerializer
+    queryset = Survey.objects.all()
+
+    def get_object(self):
+        surey_id = self.kwargs['survey_id']
+        obj = get_object_or_404(Survey, id=surey_id)
+        return obj
+    
+
+# ----------------------------------------------------------------------------
+class SurveyOptionListCreateView(generics.ListCreateAPIView):
+    serializer_class = SurveyOptionSerializer
+    pagination_class = SurveyOptionPagination
+
+    def get_queryset(self):
+        survey_id = self.kwargs['survey_id']
+        queryset = Option.objects.filter(survey__id=survey_id)
+        return queryset
+    
+# -----------------------------------------------------------------------------
+class SurveyOptionRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = SurveyOptionSerializer
+    queryset = Option.objects.all()
+
+    def get_object(self):
+        option_id = self.kwargs['option_id']
+        obj = get_object_or_404(Option, id=option_id)
+        return obj
+    
+# ----------------------------------------------------------------------------
+class SurveyOpinionListCreateView(generics.ListCreateAPIView):
+    serializer_class = SurveyOpinionSerializer
+    pagination_class = SurveyOpinionPagination
+
+    def get_queryset(self):
+        survey_id = self.kwargs['survey_id']
+        queryset = Opinion.objects.filter(survey__id=survey_id)
+        return queryset
+    
+# -----------------------------------------------------------------------------
+class SurveyOpinionRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = SurveyOpinionSerializer
+    queryset = Opinion.objects.all()
+
+
+    def get_object(self):
+        opinion_id = self.kwargs['opinion_id']
+        obj = get_object_or_404(Opinion, id=opinion_id)
+        return obj
+    
+# ------------------------------------------------------------------------------
+class SurveySelectOptionListCreateView(generics.ListCreateAPIView):
+    serializer_class = SurveySelectOptionSerializer
+    pagination_class = SurveySelectOptionPagination
+    queryset = SelectedOption.objects.all()
+
+# -------------------------------------------------------------------------------
+class SurveySelectOptionRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = SurveySelectOptionSerializer
+    queryset = SelectedOption.objects.all()
 
 
 
