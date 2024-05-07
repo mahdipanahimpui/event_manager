@@ -1,8 +1,8 @@
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from .models import Participant
 
-from django.core.mail import send_mail, EmailMessage
+from django.core.mail import send_mail
 from event_manager.settings import EMAIL_HOST_USER
 
 @receiver(pre_save, sender=Participant)

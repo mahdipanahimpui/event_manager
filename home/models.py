@@ -175,7 +175,7 @@ class Option(models.Model):
         return f'survey: {self.survey.pk}  |  option: {self.option_field}'
 
 # ----------------------------------------------------------------------------------------
-class SelectedOption(models.Model):
+class SelectOption(models.Model):
     
     participant = models.ForeignKey(Participant, on_delete=models.CASCADE)
     survey = models.ForeignKey(Survey, on_delete=models.CASCADE)
@@ -184,13 +184,10 @@ class SelectedOption(models.Model):
 
 
     def clean(self):
-        print('*'*90)
-        print(self.survey.pk)
-        print(self.option.survey.pk)
         if self.survey.pk != self.option.survey.pk:
             raise ValidationError(f"the survey with id:'{self.survey.pk}' does not have option with id:'{self.option.pk}'")
         
-        if SelectedOption.objects.filter(participant=self.participant, survey=self.survey).exists():
+        if SelectOption.objects.filter(participant=self.participant, survey=self.survey).exists():
             raise ValidationError("The participant has already answered this survey")
         
         return super().clean()

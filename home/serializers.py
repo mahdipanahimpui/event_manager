@@ -6,7 +6,7 @@ from home.models import (
     Participant,
     Meeting,
     Survey,
-    SelectedOption,
+    SelectOption,
     Opinion,
     Option
 )
@@ -185,7 +185,7 @@ class SurveyOpinionSerializer(serializers.ModelSerializer):
 class SurveySelectOptionSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = SelectedOption
+        model = SelectOption
         fields = '__all__'
         
 
@@ -200,10 +200,10 @@ class SurveySelectOptionSerializer(serializers.ModelSerializer):
             if survey.pk != option.survey.pk:
                 raise serializers.ValidationError(f"the survey with id:'{survey.pk}' does not have option with id:'{option.pk}'")
  
-            if SelectedOption.objects.filter(survey=survey, participant=participant).exists():
+            if SelectOption.objects.filter(survey=survey, participant=participant).exists():
                 raise serializers.ValidationError("The participant has already answered this survey")
 
-        except SelectedOption.DoesNotExist:
+        except SelectOption.DoesNotExist:
             pass
 
         return super().validate(attrs)

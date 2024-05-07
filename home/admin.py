@@ -6,7 +6,7 @@ from .models import (
     Survey,
     Option,
     Opinion,
-    SelectedOption,
+    SelectOption,
 )
 
 
@@ -16,4 +16,4 @@ admin.site.register(Meeting)
 admin.site.register(Survey)
 admin.site.register(Option)
 admin.site.register(Opinion)
-admin.site.register(SelectedOption)
+admin.site.register(SelectOption)

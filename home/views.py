@@ -2,9 +2,13 @@ from django.shortcuts import HttpResponse
 from django.views import View
 
 from rest_framework import viewsets, generics
+from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from rest_framework.generics import get_object_or_404
+
+from django.core.mail import send_mail
+from event_manager.settings import EMAIL_HOST_USER
 
 
 from .serializers import (
@@ -34,7 +38,7 @@ from .models import(
     Survey,
     Option,
     Opinion,
-    SelectedOption
+    SelectOption
 )
 
 # -------------------------------------------------------------------
@@ -153,12 +157,77 @@ class SurveyOpinionRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIVi
 class SurveySelectOptionListCreateView(generics.ListCreateAPIView):
     serializer_class = SurveySelectOptionSerializer
     pagination_class = SurveySelectOptionPagination
-    queryset = SelectedOption.objects.all()
+    queryset = SelectOption.objects.all()
 
 # -------------------------------------------------------------------------------
 class SurveySelectOptionRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = SurveySelectOptionSerializer
-    queryset = SelectedOption.objects.all()
+    queryset = SelectOption.objects.all()
+
+# -------------------------------------------------------------------------------
+class SurveyOptionCounterView(APIView):
+    def get(self, request, *args, **kwargs):
+        
+        try:
+            survey_id = kwargs['survey_id']
+            survey = get_object_or_404(Survey, id=survey_id)
+            options = Option.objects.filter(survey=survey)
+            option_count = []
+            for option in options:
+                selected_option_count = SelectOption.objects.filter(survey=survey, option=option).count()
+                option_count.append(
+                    {'option': option.id,
+                    'count': selected_option_count}
+                    )
+            survey_data = {
+                'survey': survey_id,
+                'results': option_count
+            }
+            
+            return Response(survey_data)
+        
+        except Survey.DoesNotExist:
+            return Response(
+                {'error': f'Survey with id: {survey_id} not found'},
+                status=404
+            )
+        
+# ----------------------------------------------------------------------------
+class SurveyOpinionCounterView(APIView):
+    def get(self, request, *args, **kwargs):
+        
+        try:
+            survey_id = kwargs['survey_id']
+            survey = get_object_or_404(Survey, id=survey_id)
+            opinion_count = Opinion.objects.filter(survey=survey).count()
+            survey_data = {
+                'survey': survey_id,
+                'results': {
+                    'opinion_count': opinion_count
+                }
+            }
+            
+            return Response(survey_data)
+        
+        except Survey.DoesNotExist:
+            return Response(
+                {'error': f'Survey with id: {survey_id} not found'},
+                status=404
+            )
+        
+# ----------------------------------------------------------------------------
+class SendEventSurveysView(APIView):
+    def get(self, request, *args, **kwargs):
+        event_id = kwargs['event_id']
+        event = get_object_or_404(Event, id=event_id)
+        participants = Participant.objects.filter(event=event, attendance_time=None)
+        for participant in participants:
+
+            subject = f'{event.name}'
+            message = f'{participant.first_name} {participant.last_name} عزیز ممنون می‌شویم در نظرسنجی شرکت‌ کنید.\n www.127.0.0.1:8000/'
+            recipient_list = [instance.email_address]
+            send_mail(subject, message, EMAIL_HOST_USER, recipient_list, fail_silently=True)
+
 
 
 
