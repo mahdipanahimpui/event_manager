@@ -43,7 +43,8 @@ INSTALLED_APPS = [
 
     # third party apps
     'rest_framework',
-    'drf_spectacular'
+    'drf_spectacular',
+    'import_export'
 ]
 
 MIDDLEWARE = [

@@ -151,7 +151,7 @@ class Meeting(models.Model):
     about_presenter = models.TextField(max_length=1000, null=True, blank=True)
     organizer = models.CharField(max_length=200, null=True, blank=True)
     holding_place = models.TextField(max_length=500)
-    participants = models.ManyToManyField(Participant, null=True, blank=True)
+    participants = models.ManyToManyField(Participant)
 
     def __str__(self):
         return f'cod: {self.code}  |  title: {self.title}'

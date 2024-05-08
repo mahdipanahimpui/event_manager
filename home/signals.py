@@ -6,15 +6,9 @@ from django.core.mail import send_mail
 from event_manager.settings import EMAIL_HOST_USER
 
 @receiver(pre_save, sender=Participant)
-def handle_null_field_filled(sender, instance, **kwargs):
-    attendance_time = instance.attendance_time
-    # print('*'*90)
-    # print('email_sending')
-
+def handle_null_field_filled(sender, instance, *args, **kwargs):
     try:
         old_instance = sender.objects.get(pk=instance.pk)
-        print(old_instance.attendance_time)
-        print(instance.attendance_time)
 
         if old_instance.attendance_time is None and instance.attendance_time is not None:
 
@@ -22,8 +16,6 @@ def handle_null_field_filled(sender, instance, **kwargs):
             message = f'{instance.first_name} {instance.last_name} عزیز حضور شما ثبت شد'
             recipient_list = [instance.email_address]
             send_mail(subject, message, EMAIL_HOST_USER, recipient_list, fail_silently=True)
-            # print('*'*90)
-            # print('email sent')
     
     except sender.DoesNotExist:
         pass

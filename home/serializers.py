@@ -181,6 +181,28 @@ class SurveyOpinionSerializer(serializers.ModelSerializer):
         model = Opinion
         fields = '__all__'
 
+
+    def validate(self, attrs):
+        survey = attrs.get('survey')
+        participant = attrs.get('participant')
+
+        try:
+
+            if Opinion.objects.filter(survey=survey, participant=participant).exists():
+                raise serializers.ValidationError(f"The participant id:{participant.id} has already answered this survey")
+            
+            if survey.meeting is not None:
+                if participant not in survey.meeting.participants.all():
+                    raise serializers.ValidationError(f"The participant id:{participant.id} hasn`t participate in the meeting id:{survey.meeting.id}")
+            else:
+                if participant.event.id != survey.event.id:
+                    raise serializers.ValidationError(f"The participant id:{participant.id} hasn`t participate in the event id:{survey.event.id}")
+
+        except Opinion.DoesNotExist:
+            pass
+
+        return super().validate(attrs)
+    
 # ---------------------------------------------------------------
 class SurveySelectOptionSerializer(serializers.ModelSerializer):
 
@@ -201,7 +223,15 @@ class SurveySelectOptionSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(f"the survey with id:'{survey.pk}' does not have option with id:'{option.pk}'")
  
             if SelectOption.objects.filter(survey=survey, participant=participant).exists():
-                raise serializers.ValidationError("The participant has already answered this survey")
+                raise serializers.ValidationError(f"The participant id:{participant.id} has already answered this survey")
+            
+            if survey.meeting is not None:
+                if participant not in survey.meeting.participants.all():
+                    raise serializers.ValidationError(f"The participant id:{participant.id} hasn`t participate in the meeting id:{survey.meeting.id}")
+            else:
+                if participant.event.id != survey.event.id:
+                    raise serializers.ValidationError(f"The participant id:{participant.id} hasn`t participate in the event id:{survey.event.id}")
+
 
         except SelectOption.DoesNotExist:
             pass

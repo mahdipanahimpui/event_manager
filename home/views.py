@@ -83,7 +83,7 @@ class MeetingViewSet(viewsets.ModelViewSet):
     serializer_class = MeetingSerializer
     pagination_class = MeetingPagination 
 
-# ----------------------------------------------------------------------
+# -------------------------------------------------------------meetings---------
 class SendEmailView(APIView):
 
     def post(self, request):
@@ -218,15 +218,76 @@ class SurveyOpinionCounterView(APIView):
 # ----------------------------------------------------------------------------
 class SendEventSurveysView(APIView):
     def get(self, request, *args, **kwargs):
-        event_id = kwargs['event_id']
-        event = get_object_or_404(Event, id=event_id)
-        participants = Participant.objects.filter(event=event, attendance_time=None)
-        for participant in participants:
+        try:
+            event_id = kwargs['event_id']
+            event = get_object_or_404(Event, id=event_id)
+            participants = Participant.objects.filter(event=event).exclude(attendance_time__isnull=True)
+            
+            results = []
 
-            subject = f'{event.name}'
-            message = f'{participant.first_name} {participant.last_name} عزیز ممنون می‌شویم در نظرسنجی شرکت‌ کنید.\n www.127.0.0.1:8000/'
-            recipient_list = [instance.email_address]
-            send_mail(subject, message, EMAIL_HOST_USER, recipient_list, fail_silently=True)
+            for participant in participants:
+
+                subject = f'{event.name}'
+                message = f'{participant.first_name} {participant.last_name} عزیز ممنون می‌شویم در نظرسنجی  {event.name}شرکت‌ کنید \n www.127.0.0.1:8000/participate_survey/?participant_id={participant.id}&event_id={event_id}'
+
+                recipient_list = [participant.email_address]
+                send_mail(subject, message, EMAIL_HOST_USER, recipient_list, fail_silently=True)
+
+                results.append(
+                    {'participant': participant.id,
+                    'email': participant.email_address}
+                    )
+
+            data = {
+                'event': event_id,
+                'results': results
+            }
+            return Response(data)
+        
+        except Event.DoesNotExist:
+            return Response(
+                {'error': f'event with id: {event_id} not found'},
+                status=404
+            ) 
+        
+# ---------------------------------------------------------------------------
+class SendMeetingSurveysView(APIView):
+    def get(self, request, *args, **kwargs):
+        try:
+            meeting_id = kwargs['meeting_id']
+            meeting = get_object_or_404(Meeting, id=meeting_id)
+            event = meeting.event
+            participants = meeting.participants.all()
+            print('*'*90)
+            print(participants)
+            print(meeting.title)
+            
+            results = []
+
+            for participant in participants:
+
+                subject = f'{event.name}'
+                message = f'{participant.first_name} {participant.last_name} عزیز ممنون می‌شویم در نظرسنجی  {meeting.title}شرکت‌ کنید \n www.127.0.0.1:8000/participate_survey/?participant_id={participant.id}&event_id={event.id}&meeting_id={meeting_id}'
+
+                recipient_list = [participant.email_address]
+                send_mail(subject, message, EMAIL_HOST_USER, recipient_list, fail_silently=True)
+
+                results.append(
+                    {'participant': participant.id,
+                    'email': participant.email_address}
+                    )
+
+            data = {
+                'meeting': meeting_id,
+                'results': results
+            }
+            return Response(data)
+        
+        except Event.DoesNotExist:
+            return Response(
+                {'error': f'event with id: {meeting_id} not found'},
+                status=404
+            ) 
 
 
 
