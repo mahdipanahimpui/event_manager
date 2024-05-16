@@ -1,11 +1,12 @@
 from django.db import models
 from utils import validators
-from django.core.validators import MinValueValidator, MaxValueValidator
 import qrcode
 from io import BytesIO
 from django.core.files import File
 from PIL import Image, ImageDraw
+import os
 
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 
 
@@ -20,17 +21,21 @@ def validate_uniqueness_by_event(event, field, field_name):
     
 
 
-def qr_code_generator(id, qr_code_field):
+def qr_code_generator(id, num, phone, qr_code_field):
         qrcode_img = qrcode.make(f'{id}')
         canvas = Image.new('RGB', (290, 290), 'white')
         draw = ImageDraw.Draw(canvas)
         canvas.paste(qrcode_img)
-        fname = f'qr_code-{id}.png'
+        fname = f'qr_code|id:{id}|num:{num}|phone{phone}.png'
         buffer = BytesIO()
         canvas.save(buffer, 'PNG')
         qr_code_field.save(fname, File(buffer), save=False)
         canvas.close()
 
+
+def get_upload_path(instance, file_name):
+    directory_name = f'event_id:{instance.id}-start_date:{instance.start_date}'
+    return os.path.join('qr_codes', directory_name, file_name)
 
 # ------------------------------------------------------------------
 # --------------------- MODELS ------------------------------------
@@ -49,6 +54,7 @@ class Event(models.Model):
 
 # -----------------------------------------------------------------
 class Participant(models.Model):
+    # seceond element is human-readable
     MEMBERSHIP_TYPE_CHOICES = (
         ('ordinary_author', 'ordinary_author'),
         ('student_author', 'student_author'),
@@ -56,24 +62,24 @@ class Participant(models.Model):
         ('ordinary_sutudent', 'ordinary_student'),
         ('free_participant', 'free_participant')
     )
-    EDUCATION_LEVEL_CHOICE = (
-        ('PhD', 'PhD'),
-        ('MD', 'MD'),
-        ('PhD_candinate', 'PhD_candinate'),
+    EDUCATION_LEVEL_CHOICES = (
+        ('phd', 'phd'),
+        ('md', 'md'),
+        ('phd_candinate', 'phd_candinate'),
         ('masters', 'masters'),
         ('masters_student', 'masters_student'),
         ('bachelors', 'bachelors'),
         ('bachelor_student', 'bachelor_student'),
         ('other', 'other')
     )
-    REGESTERED_AS_CHOICE = (
-        ('individual', 'Individual'),
+    REGESTERED_AS_CHOICES = (
+        ('individual', 'individual'),
         ('entity', 'entity'),
     )
     TITLE_CHOICES = (
-        ('Mr', 'Mr'),
-        ('Mrs', 'Mrs'),
-        ('Dr', 'Dr')
+        ('mr', 'mr'),
+        ('mrs', 'mrs'),
+        ('dr', 'dr')
     )
     SCIENCE_RANKING_CHOICES = (
         ('professor', 'professor'),
@@ -84,14 +90,14 @@ class Participant(models.Model):
 
 
 
-    # num = models.IntegerField()
+    num = models.IntegerField(blank=True)
     event = models.ForeignKey(Event, on_delete=models.CASCADE)
 
-    regestered_as = models.CharField(max_length=30, choices=REGESTERED_AS_CHOICE)
+    regestered_as = models.CharField(max_length=30, choices=REGESTERED_AS_CHOICES)
     title = models.CharField(max_length=30, choices=TITLE_CHOICES)
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
-    education_level = models.CharField(max_length=30, choices=EDUCATION_LEVEL_CHOICE)
+    education_level = models.CharField(max_length=30, choices=EDUCATION_LEVEL_CHOICES)
     science_ranking = models.CharField(max_length=30, choices=SCIENCE_RANKING_CHOICES)
     # favorite_research_field = models.TextField(max_length=200, null=True, blank=True)
     # phone_number = models.CharField(max_length=15, validators=[validators.just_number_validator])
@@ -106,7 +112,7 @@ class Participant(models.Model):
     # username = models.CharField(max_length=200)
     # description = models.TextField(max_length=500, null=True, blank=True)
     meal = models.SmallIntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(2)])
-    qr_code =  models.ImageField(upload_to='qr_codes', blank=True)
+    qr_code =  models.ImageField(upload_to=get_upload_path, blank=True)
     attendance_time = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -130,10 +136,11 @@ class Participant(models.Model):
         if self._state.adding: 
             validate_uniqueness_by_event(self.event, self.mobile_phone_number, 'mobile_phone_number')
             validate_uniqueness_by_event(self.event, self.email_address, 'email_address')
+            self.num = Participant.objects.filter(event=self.event).count() + 1
 
             super().save(*args, **kwargs)
 
-            qr_code_generator(self.id, self.qr_code)
+            qr_code_generator(self.id, self.num, self.mobile_phone_number, self.qr_code)
 
         super().save(*args, **kwargs)
 

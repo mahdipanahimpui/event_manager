@@ -1,14 +1,24 @@
 from django.shortcuts import HttpResponse
 from django.views import View
+from django.contrib.auth import get_user_model
+
 
 from rest_framework import viewsets, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import get_object_or_404
+from rest_framework.permissions import AllowAny
+from .permissions import IsSuperUser
 
 from django.core.mail import send_mail
 from event_manager.settings import EMAIL_HOST_USER
+from . filtration import (
+    Filtration, 
+    ParticipantFiltration, 
+    EventFiltration, 
+    MeetingFiltration
+)
 
 
 from .serializers import (
@@ -18,7 +28,9 @@ from .serializers import (
     SurveySerializer, 
     SurveyOptionSerializer,
     SurveyOpinionSerializer,
-    SurveySelectOptionSerializer
+    SurveySelectOptionSerializer,
+    UserSerializer, 
+    SendEmailSerializer
 )
 
 from utils.pagination import (
@@ -47,15 +59,18 @@ class HomeView(View):
         return HttpResponse('hello world!')
 
 # -----------------------------------------------------------------
-class EventViewSet(viewsets.ModelViewSet):
+class EventViewSet(Filtration ,viewsets.ModelViewSet):
     queryset = Event.objects.all()
     serializer_class = EventSerializer
     pagination_class = EventPagination   
+    filtration_class = EventFiltration
 
 # --------------------------------------------------------------------
-class ParticipantListCreateView(generics.ListCreateAPIView):
+class ParticipantListCreateView(Filtration ,generics.ListCreateAPIView):
     serializer_class = ParticipantSerializer
     pagination_class = ParticipantPagination
+    filtration_class = ParticipantFiltration
+    
 
     def get_queryset(self):
         event_id = self.kwargs['event_id']
@@ -78,19 +93,67 @@ class ParticipantRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView
         return obj
     
 # ----------------------------------------------------------------------
-class MeetingViewSet(viewsets.ModelViewSet):
+class MeetingViewSet(Filtration ,viewsets.ModelViewSet):
     queryset = Meeting.objects.all()
     serializer_class = MeetingSerializer
     pagination_class = MeetingPagination 
+    filtration_class = MeetingFiltration
 
-# -------------------------------------------------------------meetings---------
-class SendEmailView(APIView):
 
-    def post(self, request):
-        pass
-            
+# -------------------------------------------------------------  ---------
+class SendEmailView(generics.GenericAPIView):
+    # permission_classes = [AllowAny] ### NOTE: remove it
+    filtration_class = ParticipantFiltration
 
-# ----------------------------------------------------------------------
+    def get_queryset(self):
+        event_id = self.kwargs['event_id']
+        queryset = Participant.objects.filter(event__id=event_id)
+        queryset = self.filtration_class().list(self.request, queryset)
+        return queryset
+    
+    def post(self, request, *args, **kwargs):
+        event_id = kwargs['event_id']
+        serializer = SendEmailSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        validated_data = serializer.validated_data
+
+        try:
+            participants = self.get_queryset()
+
+            results = []
+            for participant in participants:
+
+                subject = f"{validated_data['subject']}"
+                name = f'{participant.first_name} {participant.last_name}' if validated_data['is_name_at_first'] else ''
+                message = f"{name} " + f"{validated_data['text']}"
+
+                recipient_list = [participant.email_address]
+                send_mail(subject, message, EMAIL_HOST_USER, recipient_list, fail_silently=True)
+
+                results.append(
+                    {'participant': participant.id,
+                    'email': participant.email_address}
+                    )
+
+            data = {
+                'event': event_id,
+                'results': results
+            }
+            return Response(data)
+        
+        except Event.DoesNotExist:
+            return Response(
+                {'error': f'event with id: {event_id} not found'},
+                status=404
+            ) 
+        
+
+
+
+
+
+# ------------------------------  Survey ----------------------------------------
 class SurveyListCreateView(generics.ListCreateAPIView):
     serializer_class = SurveySerializer
     pagination_class = SurveyPagination
@@ -142,16 +205,26 @@ class SurveyOpinionListCreateView(generics.ListCreateAPIView):
         queryset = Opinion.objects.filter(survey__id=survey_id)
         return queryset
     
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return []
+        return super().get_permissions()
+    
 # -----------------------------------------------------------------------------
 class SurveyOpinionRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = SurveyOpinionSerializer
     queryset = Opinion.objects.all()
 
-
     def get_object(self):
         opinion_id = self.kwargs['opinion_id']
         obj = get_object_or_404(Opinion, id=opinion_id)
         return obj
+    
+    def get_permissions(self):
+        if self.request.method in ['PATCH', 'PUT', 'DELETE']:
+            return [IsSuperUser]
+        
+        return super().get_permissions()
     
 # ------------------------------------------------------------------------------
 class SurveySelectOptionListCreateView(generics.ListCreateAPIView):
@@ -159,10 +232,22 @@ class SurveySelectOptionListCreateView(generics.ListCreateAPIView):
     pagination_class = SurveySelectOptionPagination
     queryset = SelectOption.objects.all()
 
+    def get_permissions(self):
+        if self.request.method == 'POST':
+            return []
+        return super().get_permissions()
+
 # -------------------------------------------------------------------------------
 class SurveySelectOptionRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = SurveySelectOptionSerializer
     queryset = SelectOption.objects.all()
+
+    def get_permissions(self):
+        if self.request.method in ['PATCH', 'PUT', 'DELETE']:
+            return [IsSuperUser]
+        
+        return super().get_permissions()
+ 
 
 # -------------------------------------------------------------------------------
 class SurveyOptionCounterView(APIView):
@@ -216,7 +301,9 @@ class SurveyOpinionCounterView(APIView):
             )
         
 # ----------------------------------------------------------------------------
-class SendEventSurveysView(APIView):
+class SendEventSurveyEmailsView(APIView):
+    permission_classes = [IsSuperUser]
+
     def get(self, request, *args, **kwargs):
         try:
             event_id = kwargs['event_id']
@@ -251,7 +338,8 @@ class SendEventSurveysView(APIView):
             ) 
         
 # ---------------------------------------------------------------------------
-class SendMeetingSurveysView(APIView):
+class SendMeetingSurveyEmailsView(APIView):
+    permission_classes = [IsSuperUser]
     def get(self, request, *args, **kwargs):
         try:
             meeting_id = kwargs['meeting_id']
@@ -289,6 +377,24 @@ class SendMeetingSurveysView(APIView):
                 status=404
             ) 
 
+# ---------------------------------------------------------------------------
+class AdminViewSet(Filtration, viewsets.ModelViewSet):
+    permission_classes = [IsSuperUser]
+    queryset = get_user_model().objects.all()
+    serializer_class = UserSerializer
 
+# ----------------------------------------------------------------------------
+class ProfileView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = get_user_model().objects.all()
+    serializer_class = UserSerializer
 
-
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        queryset = queryset.filter(id=self.request.user.id)
+        return queryset
+    
+    def get_object(self):
+        return self.get_queryset().first()
+    
+    def delete(self, request, *args, **kwargs):
+        raise PermissionDenied('you cant remvoe yourself, it will done only by the superuser ')

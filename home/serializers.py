@@ -1,5 +1,9 @@
 from rest_framework import serializers
 from django.shortcuts import get_object_or_404
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.mail import send_mail
+from event_manager.settings import EMAIL_HOST_USER
 
 from home.models import (
     Event,
@@ -153,6 +157,15 @@ class MeetingSerializer(serializers.ModelSerializer):
 
         for participant in add_participants:
             meeting.participants.add(participant)
+            try:
+                subject = f'{participant.event.name}'
+                message = f"{participant.first_name} {instance.last_name} عزیز حضور شما در نشست با کد{validated_data['code']} ثبت شد"
+                recipient_list = [participant.email_address]
+                send_mail(subject, message, EMAIL_HOST_USER, recipient_list, fail_silently=True)
+            
+            except Participant.DoesNotExist:
+                pass
+
 
         for participant in remove_participants:
             meeting.participants.remove(participant)
@@ -237,3 +250,99 @@ class SurveySelectOptionSerializer(serializers.ModelSerializer):
             pass
 
         return super().validate(attrs)
+
+
+# -----------------------------------------------------
+class UserSerializer(serializers.ModelSerializer):        
+    confirm_password = serializers.CharField(max_length=128, required=False, write_only=True)
+
+    class Meta:
+        model = get_user_model()
+        fields = [
+            'id',
+            'is_active',
+            'is_staff',
+            'is_superuser',
+            'username',
+            'password', # the model hashed password, replaced with serializer field
+            'confirm_password',
+            'is_superuser',
+            'email',
+            'first_name',
+            'last_name',
+            'last_login',
+            'date_joined',
+            'groups',
+            'user_permissions'
+
+        ]
+        read_only_fields = [
+            'id',
+            'last_login',
+            'is_superuser',
+            'is_staff',
+            'date_joined',
+            'groups',
+            'user_permissions',
+        ]
+
+    def is_password_strong(self, password):
+            validate_password(password)
+            return True
+
+
+    def check_passwords(self, password, confirm_password):
+        if password:
+            if confirm_password:
+                if password != confirm_password:
+                    raise serializers.ValidationError("passwords must match.")
+            else:
+                raise serializers.ValidationError("confirm password is requied")
+            self.is_password_strong(password)
+            return True
+        return False
+        
+
+    def validate_activation(self, user, validated_data):
+        is_active = validated_data.pop('is_active', None)
+        # super user can change the is_active of all user except itself
+        # all users even super user cant chage is_active of themselves
+        if is_active is not None and (self.context['request'].user.is_superuser and user != self.context['request'].user):
+            validated_data['is_active'] = is_active
+        return validated_data
+    
+
+    def set_user_password(self, user, validated_data):
+        password = validated_data.get('password', None)
+        if password:
+            user.set_password(validated_data['password'])
+            user.save()
+        return user
+
+
+    def validate(self, attrs):
+        password = attrs.get('password')
+        confirm_password = attrs.pop('confirm_password', None)
+        self.check_passwords(password, confirm_password)
+        return super().validate(attrs)
+    
+
+    def create(self, validated_data):
+        user = super().create(validated_data)
+        user = self.set_user_password(user, validated_data)
+        return user
+
+
+    def update(self, user, validated_data):
+        validated_data = self.validate_activation(user, validated_data)
+        user = super().update(user, validated_data)
+        user = self.set_user_password(user, validated_data)
+        return user
+    
+
+# -----------------------------------------------------------------------------------
+
+class SendEmailSerializer(serializers.Serializer):
+    subject = serializers.CharField()
+    text = serializers.CharField(style={'base_template': 'textarea.html'})
+    is_name_at_first = serializers.BooleanField()
