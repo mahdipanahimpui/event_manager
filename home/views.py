@@ -11,11 +11,16 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import AllowAny
 from .permissions import IsSuperUser
 
-from django.core.mail import send_mail
 from event_manager.settings import EMAIL_HOST_USER
 
 
-from . emails import send_event_survey_emails
+from . tasks import (
+    send_event_survey_emails_task,
+    send_meeting_survey_emails_task,
+    send_email
+)
+
+
 
 from . filtration import (
     Filtration, 
@@ -34,7 +39,8 @@ from .serializers import (
     SurveyOpinionSerializer,
     SurveySelectOptionSerializer,
     UserSerializer, 
-    SendEmailSerializer
+    SendEmailSerializer,
+
 )
 
 from utils.pagination import (
@@ -125,21 +131,8 @@ class SendEmailView(generics.GenericAPIView):
         try:
             participants = self.get_queryset()
 
-            results = []
-            for participant in participants:
-
-                subject = f"{validated_data['subject']}"
-                name = f'{participant.first_name} {participant.last_name}' if validated_data['is_name_at_first'] else ''
-                message = f"{name} " + f"{validated_data['text']}"
-
-                recipient_list = [participant.email_address]
-                send_mail(subject, message, EMAIL_HOST_USER, recipient_list, fail_silently=True)
-
-                results.append(
-                    {'participant': participant.id,
-                    'email': participant.email_address}
-                    )
-
+            results = send_email.delay(participants, validated_data)
+            
             data = {
                 'event': event_id,
                 'results': results
@@ -238,7 +231,7 @@ class SurveySelectOptionListCreateView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return []
+            return [AllowAny]
         return super().get_permissions()
 
 # -------------------------------------------------------------------------------
@@ -314,7 +307,7 @@ class SendEventSurveyEmailsView(APIView):
             event = get_object_or_404(Event, id=event_id)
             participants = Participant.objects.filter(event=event).exclude(attendance_time__isnull=True)
             
-            results = send_event_survey_emails(participants, event)
+            results = send_event_survey_emails_task.delay(participants, event)
 
             data = {
                 'event': event_id,
@@ -337,24 +330,8 @@ class SendMeetingSurveyEmailsView(APIView):
             meeting = get_object_or_404(Meeting, id=meeting_id)
             event = meeting.event
             participants = meeting.participants.all()
-            print('*'*90)
-            print(participants)
-            print(meeting.title)
-            
-            results = []
-
-            for participant in participants:
-
-                subject = f'{event.name}'
-                message = f'{participant.first_name} {participant.last_name} عزیز ممنون می‌شویم در نظرسنجی  {meeting.title}شرکت‌ کنید \n www.127.0.0.1:8000/participate_survey/?participant_id={participant.id}&event_id={event.id}&meeting_id={meeting_id}'
-
-                recipient_list = [participant.email_address]
-                send_mail(subject, message, EMAIL_HOST_USER, recipient_list, fail_silently=True)
-
-                results.append(
-                    {'participant': participant.id,
-                    'email': participant.email_address}
-                    )
+    
+            results = send_meeting_survey_emails_task.delay(participants, event, meeting)
 
             data = {
                 'meeting': meeting_id,

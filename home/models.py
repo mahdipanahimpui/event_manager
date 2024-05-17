@@ -22,7 +22,7 @@ def validate_uniqueness_by_event(event, field, field_name):
 
 
 def qr_code_generator(id, num, phone, qr_code_field):
-        qrcode_img = qrcode.make(f'{id}')
+        qrcode_img = qrcode.make(f'id:{id}|num:{num}|phone{phone}')
         canvas = Image.new('RGB', (290, 290), 'white')
         draw = ImageDraw.Draw(canvas)
         canvas.paste(qrcode_img)

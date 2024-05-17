@@ -1,4 +1,4 @@
-from celelry import Celery
+from celery import Celery
 from datetime import timedelta
 import os
 
