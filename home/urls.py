@@ -10,6 +10,7 @@ urlpatterns = [
     path('events/<int:event_id>/participants/', views.ParticipantListCreateView.as_view(), name='participant_list_create_view'),
     path('events/<int:event_id>/participants/<int:participant_id>/', views.ParticipantRetrieveUpdateDestroyView.as_view(), name='participant_retrieve_update_destroy_view'), 
     path('events/<int:event_id>/send_email/', views.SendEmailView.as_view(), name='send_email_view'),
+    path('events/<int:event_id>/export/', views.ExportView.as_view(), name='export_view'),
 
     path('events/<int:event_id>/surveys/', views.SurveyListCreateView.as_view(), name='event_survey_list_create_view'),
     path('events/<int:event_id>/meetings/<int:meeting_id>/surveys/', views.SurveyListCreateView.as_view(), name='meeting_survey_list_create_view'),
@@ -29,6 +30,8 @@ urlpatterns = [
     path('survey_select_options/<int:select_option_id>/', views.SurveySelectOptionRetrieveUpdateDestroyView.as_view(), name='survey_select_option_retrieve_update_destroy_view'),
     path('surveys/<int:survey_id>/opinion_counter/', views.SurveyOpinionCounterView.as_view(), name='surveys_opinion_counter_view'),
     
+    path('profile/', views.ProfileView.as_view(), name='profile_view'),
+
 
 ]
 
@@ -36,6 +39,8 @@ urlpatterns = [
 router = routers.SimpleRouter()
 router.register('events', views.EventViewSet)
 router.register('meetings', views.MeetingViewSet)
+router.register('admins', views.AdminViewSet)
+
 
 urlpatterns += router.urls
 # ------------------------------------------------------------------
@@ -46,3 +51,5 @@ authentication_urls = [
     path('login/', TokenObtainPairView.as_view(), name='login'),
     path('login/token_refresh/', TokenRefreshView.as_view(), name='login_token_refresh'),
 ]
+
+urlpatterns += authentication_urls

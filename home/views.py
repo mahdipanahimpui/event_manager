@@ -8,10 +8,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import get_object_or_404
-from rest_framework.permissions import AllowAny
-from .permissions import IsSuperUser
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from permissions import IsSuperUser
 
 from event_manager.settings import EMAIL_HOST_USER
+from django.http import HttpResponse
+from openpyxl import Workbook
 
 
 from . tasks import (
@@ -26,7 +28,8 @@ from . filtration import (
     Filtration, 
     ParticipantFiltration, 
     EventFiltration, 
-    MeetingFiltration
+    MeetingFiltration,
+    UserFiltration
 )
 
 
@@ -50,7 +53,8 @@ from utils.pagination import (
     SurveyPagination,
     SurveyOptionPagination,
     SurveyOpinionPagination,
-    SurveySelectOptionPagination
+    SurveySelectOptionPagination,
+    AdminPagination
 )
 
 from .models import(
@@ -66,7 +70,7 @@ from .models import(
 # -------------------------------------------------------------------
 class HomeView(View):
     def get(self, request):
-        return HttpResponse('hello world!')
+        return HttpResponse('this is event manager')
 
 # -----------------------------------------------------------------
 class EventViewSet(Filtration ,viewsets.ModelViewSet):
@@ -74,6 +78,12 @@ class EventViewSet(Filtration ,viewsets.ModelViewSet):
     serializer_class = EventSerializer
     pagination_class = EventPagination   
     filtration_class = EventFiltration
+
+    def destroy(self, request, *args, **kwargs):
+        if self.request.method == 'DELETE' and not self.request.user.is_superuser:
+            raise PermissionDenied('just superuser can delete the event')
+    
+        return super().destroy(request, *args, **kwargs)
 
 # --------------------------------------------------------------------
 class ParticipantListCreateView(Filtration ,generics.ListCreateAPIView):
@@ -108,6 +118,12 @@ class MeetingViewSet(Filtration ,viewsets.ModelViewSet):
     serializer_class = MeetingSerializer
     pagination_class = MeetingPagination 
     filtration_class = MeetingFiltration
+
+    def destroy(self, request, *args, **kwargs):
+        if self.request.method == 'DELETE' and not self.request.user.is_superuser:
+            raise PermissionDenied('just superuser can delete the event')
+    
+        return super().destroy(request, *args, **kwargs)
 
 
 # -------------------------------------------------------------  ---------
@@ -350,6 +366,8 @@ class AdminViewSet(Filtration, viewsets.ModelViewSet):
     permission_classes = [IsSuperUser]
     queryset = get_user_model().objects.all()
     serializer_class = UserSerializer
+    filtration_class = UserFiltration
+    pagination_class = AdminPagination
 
 # ----------------------------------------------------------------------------
 class ProfileView(generics.RetrieveUpdateDestroyAPIView):
@@ -366,3 +384,60 @@ class ProfileView(generics.RetrieveUpdateDestroyAPIView):
     
     def delete(self, request, *args, **kwargs):
         raise PermissionDenied('you cant remvoe yourself, it will done only by the superuser ')
+    
+
+
+
+# --------------------------------------------------------------------------------------------------
+class ExportView(View):
+    def get(self, request, *args, **kwargs):
+        event_id = kwargs['event_id']
+        event = Event.objects.get(id=event_id)
+
+
+        response = HttpResponse(content_type='application/ms-excel')
+        response['Content-Disposition'] = f'attachment; filename="{Participant.__name__}.xlsx"'
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = f"{Participant.__name__}"
+
+        # Add headers
+        headers = [field.name for field in Participant._meta.fields]
+        ws.append(headers)
+
+        print(headers)
+
+        # Add data from the model
+        participants = Participant.objects.filter(event=event)
+
+        for p in participants:
+            qr_code = p.qr_code.url if p.qr_code else None
+            attendance_time = p.attendance_time.replace(tzinfo=None) if p.attendance_time else None
+            created_at = p.created_at.replace(tzinfo=None) if p.created_at else None
+            updated_at = p.updated_at.replace(tzinfo=None) if p.updated_at else None
+
+            ws.append([
+                p.id,
+                p.num,
+                p.event.id,
+                p.regestered_as,
+                p.title,
+                p.first_name,
+                p.last_name,
+                p.education_level,
+                p.science_ranking,
+                p.mobile_phone_number,
+                p.membership_type,
+                p.city,
+                p.email_address,
+                p.meal,
+                qr_code,
+                attendance_time,
+                created_at,
+                updated_at
+            ])
+
+        # Save the workbook to the HttpResponse
+        wb.save(response)
+        return response

@@ -1,9 +1,5 @@
 from django.db import models
 from utils import validators
-import qrcode
-from io import BytesIO
-from django.core.files import File
-from PIL import Image, ImageDraw
 import os
 
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -18,23 +14,11 @@ def validate_uniqueness_by_event(event, field, field_name):
     existing_fields = Participant.objects.filter(event=event).values_list(f'{field_name}', flat=True)
     if field in existing_fields:
         raise ValueError(f"Participant with the same {field_name} already exists for this event.")
-    
 
-
-def qr_code_generator(id, num, phone, qr_code_field):
-        qrcode_img = qrcode.make(f'id:{id}|num:{num}|phone{phone}')
-        canvas = Image.new('RGB', (290, 290), 'white')
-        draw = ImageDraw.Draw(canvas)
-        canvas.paste(qrcode_img)
-        fname = f'qr_code|id:{id}|num:{num}|phone{phone}.png'
-        buffer = BytesIO()
-        canvas.save(buffer, 'PNG')
-        qr_code_field.save(fname, File(buffer), save=False)
-        canvas.close()
 
 
 def get_upload_path(instance, file_name):
-    directory_name = f'event_id:{instance.id}-start_date:{instance.start_date}'
+    directory_name = f'eventid{instance.event.id}_{instance.event.name}'
     return os.path.join('qr_codes', directory_name, file_name)
 
 # ------------------------------------------------------------------
@@ -120,7 +104,7 @@ class Participant(models.Model):
 
 
     def clean(self):
-        if Participant.objects.filter(event=self.event, phone_number=self.phone_number).exists():
+        if Participant.objects.filter(event=self.event, mobile_phone_number=self.mobile_phone_number).exists():
             raise ValidationError("Participant with the same phone number already exists for this event.")
 
 
@@ -138,9 +122,6 @@ class Participant(models.Model):
             validate_uniqueness_by_event(self.event, self.email_address, 'email_address')
             self.num = Participant.objects.filter(event=self.event).count() + 1
 
-            super().save(*args, **kwargs)
-
-            qr_code_generator(self.id, self.num, self.mobile_phone_number, self.qr_code)
 
         super().save(*args, **kwargs)
 

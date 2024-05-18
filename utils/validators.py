@@ -8,8 +8,8 @@ iran_phone_number_validator = RegexValidator(
 )
 
 just_number_validator = RegexValidator(
-    regex=r'^[0-9]*$',
-    message="Phone number must be digits."
+    regex=r'^[+]?[0-9]*$',
+    message="Phone number must be digits. (+) can be at first"
 )
 
 

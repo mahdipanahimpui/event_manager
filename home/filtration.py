@@ -131,10 +131,6 @@ class NoneFiledQueryHandler:
 # -----------------------------------------------------------------------------------------------
 class BooleanStatusQueryHandler:
     def __init__(self, request, query_param=''):
-        """
-        status 0: false
-        status 1: true
-        """
         try: 
             self.status_query = str(request.GET.get(query_param, '')).lower()
         except (TypeError, ValueError):
@@ -145,6 +141,7 @@ class BooleanStatusQueryHandler:
         if self.status_query == 'false': 
             query_condition = {field_name: False}
             queryset = queryset.filter(**query_condition)
+            print('*'*70)
 
         elif self.status_query == 'true':
             query_condition = {field_name: True}
@@ -238,7 +235,6 @@ class MeetingFiltration(BaseFilter):
     def handle_filter(self, request, queryset):
         
         temp_queryset = queryset
-        temp_queryset = RangeQueryHandler(request, start_range_query_param='start_datetime', end_range_query_param='end_datetime').get_result(temp_queryset, field_name='holding_time')
         temp_queryset = SearchQueryHandler(request).get_result(temp_queryset, ('code', 'title', 'presenter', 'about_presenter', 'organizer', 'holding_place'))
 
         return temp_queryset
@@ -254,5 +250,5 @@ class UserFiltration(BaseFilter):
     def list(self, request, filtration_queryset):
         temp_queryset = filtration_queryset
         temp_queryset = self.handle_filter(request, temp_queryset)
-        temp_queryset = OrderingQueryHandler(request, query_param='order_by', ascending_by_default=True).get_result(temp_queryset, field_name='id')
+        temp_queryset = OrderingQueryHandler(request, query_param='order_by', ascending_by_default=True).get_result(temp_queryset)
         return temp_queryset

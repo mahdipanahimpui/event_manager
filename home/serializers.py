@@ -67,26 +67,25 @@ class ParticipantSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         event_id = attrs.get('event_id')
-        phone_number = attrs.get('phone_number')
+        mobile_phone_number = attrs.get('mobile_phone_number')
         email_address = attrs.get('email_address')
 
         
         try:
             event = Event.objects.get(id=event_id)
 
-            if Participant.objects.filter(event=event, phone_number=phone_number).exists():
-                raise serializers.ValidationError("Participant with the same phone number already exists for this event.")
+            if Participant.objects.filter(event=event, mobile_phone_number=mobile_phone_number).exists():
+                raise serializers.ValidationError("Participant with the same mobile_phone_number already exists for this event.")
 
 
             if Participant.objects.filter(event=event, email_address=email_address).exists():
-                raise serializers.ValidationError("Participant with the same email address already exists for this event.")
+                raise serializers.ValidationError("Participant with the same email_address already exists for this event.")
         
         except Event.DoesNotExist:
             pass
 
-
-
         return super().validate(attrs)
+
 
     def create(self, validated_data):
         event_id = validated_data.pop('event_id')
@@ -297,7 +296,7 @@ class UserSerializer(serializers.ModelSerializer):
                 if password != confirm_password:
                     raise serializers.ValidationError("passwords must match.")
             else:
-                raise serializers.ValidationError("confirm password is requied")
+                raise serializers.ValidationError("confirm_password field is requied")
             self.is_password_strong(password)
             return True
         return False

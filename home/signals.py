@@ -1,8 +1,26 @@
-from django.db.models.signals import pre_save
+from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from .models import Participant
 from .tasks import send_attendanceـemailـevent_task
 from event_manager.settings import EMAIL_HOST_USER
+import qrcode
+from io import BytesIO
+from django.core.files import File
+from PIL import Image, ImageDraw
+import os
+
+
+def qr_code_generator(id, num, phone, qr_code_field):
+        qrcode_img = qrcode.make(f'num{num}_id{id}_phone{phone}')
+        canvas = Image.new('RGB', (365, 365), 'white')
+        draw = ImageDraw.Draw(canvas)
+        canvas.paste(qrcode_img)
+        fname = f'num{num}_id{id}_phone{phone}.png'
+        buffer = BytesIO()
+        canvas.save(buffer, 'PNG')
+        qr_code_field.save(fname, File(buffer), save=False)
+        canvas.close()
+
 
 @receiver(pre_save, sender=Participant)
 def handle_null_field_filled(sender, instance, *args, **kwargs):
@@ -15,5 +33,20 @@ def handle_null_field_filled(sender, instance, *args, **kwargs):
 
     except sender.DoesNotExist:
         pass
+
+
+
+@receiver(post_save, sender=Participant)  
+def generate_qr_code_on_create(sender, instance, created, **kwargs):
+
+  if created:
+    # Only generate QR code if object was just created
+        
+    # Call QR code generator function
+    qr_code_generator(instance.id, instance.num, instance.mobile_phone_number, 
+                      instance.qr_code)
+
+    # Save model to update QR code field  
+    instance.save()
 
 
