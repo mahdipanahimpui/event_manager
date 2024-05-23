@@ -1,6 +1,11 @@
 from django.db import models
 from utils import validators
+from rest_framework import serializers
 import os
+import re
+import math
+import numpy as np
+
 
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
@@ -12,11 +17,70 @@ from django.core.exceptions import ValidationError
 # ------------------------------------------------------------------------------------- 
 def validate_uniqueness_by_event(event, field, field_name):
     existing_fields = Participant.objects.filter(event=event).values_list(f'{field_name}', flat=True)
-    if field in existing_fields:
-        raise ValueError(f"Participant with the same {field_name} already exists for this event.")
+
+    if str(field) in existing_fields:
+        raise serializers.ValidationError(
+            f"Participant with the same {field_name}: {field} already exists for this event with event: {event.name} with event_id: {event.id}, or imported twice"
+        )
+        # raise ValueError(f"Participant with the same {field_name} already exists for this event.")
+
+# -------------------------------------------------------------------------------------
+def validate_choice_field(field, field_name, choices):
+    if field not in dict(choices).keys():
+        raise serializers.ValidationError(
+            f"invalid {field_name}: '{field}' "
+        )
+    
+# --------------------------------------------------------------------------------------
+def validate_email_regex(email):
+    regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b'
+    if not (re.fullmatch(regex, str(email) )):
+        raise serializers.ValidationError(
+            f"Participant with email: '{email}' is not valid."
+        )
+    
+# --------------------------------------------------------------------------------------
+def validate_phone_number_regex(mobile_phone_number):
+    regex = r'^[+]?[0-9]*$'
+    if not (re.fullmatch(regex, str(mobile_phone_number) )):
+        raise serializers.ValidationError(
+            f"Participant with mobile_phone_number: '{mobile_phone_number}' is invalid, mobile_hone_number must be digits. (+) can be at first"
+        )
+    
+# -------------------------------------------------------------------------------------
+def validate_integer_range(field_value,  field_name, min, max):
+    pattern = r'^[\d]+$'
+
+    if field_value and not bool(re.match(pattern, field_value)):
+        raise serializers.ValidationError(
+            f"Participant with {field_name}: '{field_value}' must be digit. min value: {min}, max value: {max}"
+            )
+
+    if field_value and not (min <= field_value <= max):
+        raise serializers.ValidationError(
+            f"Participant with {field_name}: '{field_value}' is not valid. min value: {min}, max value: {max}"
+        )
+    
+# -------------------------------------------------------------------------------------
+def validate_required_fields(instance, required_fileds):
+
+    for field_name in required_fileds:
+        field_value = getattr(instance, field_name)
+
+        
+        if field_value is None:
+            raise serializers.ValidationError(
+                f"the field {field_name} with email: '{instance.email_address}' is required or provided in incorect way"
+            )
+        
+        if not str(field_value).strip():
+            print(field_value)
+            raise serializers.ValidationError(
+                f"the field {field_name} with email: '{instance.email_address}' is required or provided in incorect way"
+            )
 
 
-
+#----------------------------------------------------------------------------------
 def get_upload_path(instance, file_name):
     directory_name = f'eventid{instance.event.id}_{instance.event.name}'
     return os.path.join('qr_codes', directory_name, file_name)
@@ -105,11 +169,15 @@ class Participant(models.Model):
 
     def clean(self):
         if Participant.objects.filter(event=self.event, mobile_phone_number=self.mobile_phone_number).exists():
-            raise ValidationError("Participant with the same phone number already exists for this event.")
+            raise ValidationError(
+                f"Participant with the same mobile_phone_number: {self.mobile_phone_number} already exists for for this event with event: {self.event.name} with event_id: {self.event.id}."
+            )
 
 
         if Participant.objects.filter(event=self.event, email_address=self.email_address).exists():
-             raise ValidationError("Participant with the same email address already exists for this event.")
+             raise ValidationError(
+                 f"Participant with the same email_address: {self.email_address} already exists for this event with event: {self.event.name} with event_id: {self.event.id}."
+             )
         
         return super().clean()
 
@@ -118,8 +186,23 @@ class Participant(models.Model):
 
     def save(self, *args, **kwargs):
         if self._state.adding: 
+            """
+                these validations are used when creation instances form xlsx file
+            """
+            validate_required_fields(self, required_fileds=[
+                'event', 'regestered_as', 'title', 'first_name', 'last_name', 'education_level', 'science_ranking', 'mobile_phone_number', 'membership_type', 'city', 'email_address', 'meal'
+            ])
             validate_uniqueness_by_event(self.event, self.mobile_phone_number, 'mobile_phone_number')
             validate_uniqueness_by_event(self.event, self.email_address, 'email_address')
+            validate_choice_field(self.membership_type, 'membership_type', choices=self.MEMBERSHIP_TYPE_CHOICES)
+            validate_choice_field(self.education_level, 'education_level', choices=self.EDUCATION_LEVEL_CHOICES)
+            validate_choice_field(self.regestered_as, 'regestered_as', choices=self.REGESTERED_AS_CHOICES)
+            validate_choice_field(self.title, 'title', choices=self.TITLE_CHOICES)
+            validate_choice_field(self.science_ranking, 'science_ranking', choices=self.SCIENCE_RANKING_CHOICES)
+            validate_phone_number_regex(self.mobile_phone_number)
+            validate_email_regex(self.email_address)
+            validate_integer_range(self.meal, field_name='meal', min=0, max=2)
+
             self.num = Participant.objects.filter(event=self.event).count() + 1
 
 
@@ -196,6 +279,12 @@ class Opinion(models.Model):
 
     class Meta:
         unique_together = ('participant', 'survey')
+
+
+
+# --------------------------------------------------------------------------------------------
+class Document(models.Model):
+    file = models.FileField(upload_to='documents/')
 
 
 

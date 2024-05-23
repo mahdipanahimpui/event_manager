@@ -50,3 +50,22 @@ def generate_qr_code_on_create(sender, instance, created, **kwargs):
     instance.save()
 
 
+
+@receiver(pre_save, sender=Participant)
+def capitalize_filed(sender, instance, **kwargs):
+    instance.first_name = instance.first_name.capitalize()
+    instance.last_name = instance.last_name.capitalize()
+
+
+@receiver(pre_save, sender=Participant)
+def lower_field(sender, instance, **kwargs):
+    instance.regestered_as = instance.regestered_as.lower()
+    instance.title = instance.title.capitalize()
+    instance.education_level = instance.education_level.capitalize()
+    instance.science_ranking = instance.science_ranking.capitalize()
+    instance.membership_type = instance.membership_type.capitalize()
+    instance.city = instance.city.capitalize()
+    instance.email_address = instance.email_address.capitalize()
+
+
+

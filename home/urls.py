@@ -11,6 +11,7 @@ urlpatterns = [
     path('events/<int:event_id>/participants/<int:participant_id>/', views.ParticipantRetrieveUpdateDestroyView.as_view(), name='participant_retrieve_update_destroy_view'), 
     path('events/<int:event_id>/send_email/', views.SendEmailView.as_view(), name='send_email_view'),
     path('events/<int:event_id>/export/', views.ExportView.as_view(), name='export_view'),
+    path('events/<int:event_id>/import/', views.DocumentCreateView.as_view(), name='import_view'),
 
     path('events/<int:event_id>/surveys/', views.SurveyListCreateView.as_view(), name='event_survey_list_create_view'),
     path('events/<int:event_id>/meetings/<int:meeting_id>/surveys/', views.SurveyListCreateView.as_view(), name='meeting_survey_list_create_view'),
@@ -44,7 +45,6 @@ router.register('admins', views.AdminViewSet)
 
 urlpatterns += router.urls
 # ------------------------------------------------------------------
-
 
 
 authentication_urls = [

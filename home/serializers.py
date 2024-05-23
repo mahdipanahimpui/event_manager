@@ -12,7 +12,8 @@ from home.models import (
     Survey,
     SelectOption,
     Opinion,
-    Option
+    Option,
+    Document
 )
 
 # ---------------------------------------------------
@@ -36,6 +37,7 @@ class ParticipantSerializer(serializers.ModelSerializer):
         model = Participant
         fields = [
             'id',
+            'num',
             'event',
             'regestered_as',
             'title',
@@ -54,14 +56,14 @@ class ParticipantSerializer(serializers.ModelSerializer):
             'updated_at',
             'event_id'
         ]
-        read_only_fields = [*base_read_only_fields, 'event', 'qr_code']
+        read_only_fields = [*base_read_only_fields, 'event', 'qr_code', 'num']
 
 
     def validate_event_id(self, value):
         try:
             Event.objects.get(id=value)
         except Event.DoesNotExist:
-            raise serializers.ValidationError("Invalid event_id. Event does not exist.")
+            raise serializers.ValidationError("Invalid event_id:{value}. Event does not exist.")
         return value
     
 
@@ -75,14 +77,20 @@ class ParticipantSerializer(serializers.ModelSerializer):
             event = Event.objects.get(id=event_id)
 
             if Participant.objects.filter(event=event, mobile_phone_number=mobile_phone_number).exists():
-                raise serializers.ValidationError("Participant with the same mobile_phone_number already exists for this event.")
+                raise serializers.ValidationError(
+                    f"Participant with the same mobile_phone_number: {mobile_phone_number} already exists for for this event with event: {event.name} with event_id: {event.id}."
+                )
 
 
             if Participant.objects.filter(event=event, email_address=email_address).exists():
-                raise serializers.ValidationError("Participant with the same email_address already exists for this event.")
+                raise serializers.ValidationError(
+                    f"Participant with the same email_address: {email_address} already exists for this event with event: {event.name} with event_id: {event.id}."
+                )
         
         except Event.DoesNotExist:
             pass
+
+
 
         return super().validate(attrs)
 
@@ -345,3 +353,12 @@ class SendEmailSerializer(serializers.Serializer):
     subject = serializers.CharField()
     text = serializers.CharField(style={'base_template': 'textarea.html'})
     is_name_at_first = serializers.BooleanField()
+
+
+# -----------------------------------------------------------------------------------
+class DocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Document
+        fields = '__all__'
+
+

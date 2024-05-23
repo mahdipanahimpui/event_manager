@@ -1,9 +1,11 @@
 from django.shortcuts import HttpResponse
 from django.views import View
 from django.contrib.auth import get_user_model
+import pandas as pd
+from django.db import IntegrityError, transaction
 
 
-from rest_framework import viewsets, generics
+from rest_framework import viewsets, generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied
@@ -14,6 +16,7 @@ from permissions import IsSuperUser
 from event_manager.settings import EMAIL_HOST_USER
 from django.http import HttpResponse
 from openpyxl import Workbook
+import numpy as np
 
 
 from . tasks import (
@@ -43,6 +46,7 @@ from .serializers import (
     SurveySelectOptionSerializer,
     UserSerializer, 
     SendEmailSerializer,
+    DocumentSerializer
 
 )
 
@@ -64,7 +68,8 @@ from .models import(
     Survey,
     Option,
     Opinion,
-    SelectOption
+    SelectOption,
+    Document
 )
 
 # -------------------------------------------------------------------
@@ -406,7 +411,6 @@ class ExportView(View):
         headers = [field.name for field in Participant._meta.fields]
         ws.append(headers)
 
-        print(headers)
 
         # Add data from the model
         participants = Participant.objects.filter(event=event)
@@ -441,3 +445,73 @@ class ExportView(View):
         # Save the workbook to the HttpResponse
         wb.save(response)
         return response
+    
+
+# ------------------------------------------------------------------------
+class DocumentCreateView(generics.CreateAPIView):
+    queryset = Document.objects.all()
+    serializer_class = DocumentSerializer
+
+    def post(self, request, *args, **kwargs):
+        event_id = kwargs['event_id']
+
+        if 'file' in request.FILES:
+            file  = request.FILES['file']
+            df = pd.read_excel(file)
+            df = df.replace(np.nan, None)
+
+            try:
+                outer_index = None
+                with transaction.atomic():
+                    for index, row in df.iterrows():
+
+                        try:
+                            event = Event.objects.get(id=event_id)
+
+                        except (Event.DoesNotExist, ValueError):
+                            return Response(
+                                    {'error': f"event with id: '{row['event']}' not found"},
+                                    status=404
+                                ) 
+
+                        instance = Participant(
+                            event = event,
+                            regestered_as = row['regestered_as'].strip().lower(),
+                            title = row['title'].strip().lower(),
+                            first_name = row['first_name'].strip().capitalize(),
+                            last_name = row['last_name'].strip().capitalize(),
+                            education_level = row['education_level'].strip().lower(),
+                            science_ranking = row['science_ranking'].strip().lower(),
+                            mobile_phone_number = row['mobile_phone_number'],
+                            membership_type = row['membership_type'].strip().lower(),
+                            city = row['city'].strip().lower(),
+                            email_address = row['email_address'].strip().lower(),
+                            meal = row['meal']
+                        )
+
+                        outer_index = index
+                        instance.save()
+                        
+            except IntegrityError as e:
+                raise (f"error at row{outer_index}") from e
+            
+            return Response(
+                {'message': 'file uploaded and participant creation complete'},
+                status=status.HTTP_201_CREATED
+            )
+        
+        return Response(
+            {'error': 'no file provided'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+# for index, row in data.iterrows():
+#     obj = YourModel(
+#         column1=row['column1'],
+#         column2=row['column2'],
+#         # assign other fields accordingly
+#     )
+#     obj.save()
+
+             
