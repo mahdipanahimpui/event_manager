@@ -1,0 +1,12 @@
+{% extends 'email_templates/base.html' %}
+
+{% block header_title %}ثبت حضور{% endblock %}
+
+{% block content %}
+
+<p>{{ participant.first_name }} {{ participant.last_name }} عزیز،</p>
+<p>ضمن خوش‌آمدگویی، حضور شما در کنفرانس <b>{{ event.name }}</b> ثبت شد.</p>
+
+{% endblock %}
+
+

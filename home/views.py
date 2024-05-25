@@ -3,14 +3,14 @@ from django.views import View
 from django.contrib.auth import get_user_model
 import pandas as pd
 from django.db import IntegrityError, transaction
-
+from utils.validators import check_file_extension, check_file_size
 
 from rest_framework import viewsets, generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import get_object_or_404
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from permissions import IsSuperUser
 
 from event_manager.settings import EMAIL_HOST_USER
@@ -20,9 +20,9 @@ import numpy as np
 
 
 from . tasks import (
-    send_event_survey_emails_task,
-    send_meeting_survey_emails_task,
-    send_email
+    send_event_survey_email_task,
+    send_meeting_survey_email_task,
+    send_email_task
 )
 
 
@@ -69,7 +69,7 @@ from .models import(
     Option,
     Opinion,
     SelectOption,
-    Document
+    Document,
 )
 
 # -------------------------------------------------------------------
@@ -118,15 +118,31 @@ class ParticipantRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView
         return obj
     
 # ----------------------------------------------------------------------
-class MeetingViewSet(Filtration ,viewsets.ModelViewSet):
+class MeetingListCreateView(Filtration, generics.ListCreateAPIView):
     queryset = Meeting.objects.all()
     serializer_class = MeetingSerializer
     pagination_class = MeetingPagination 
     filtration_class = MeetingFiltration
 
+    def get_queryset(self):
+        event_id = self.kwargs['event_id']
+        queryset = Meeting.objects.filter(event__id=event_id)
+        return queryset
+
+# ----------------------------------------------------------------------
+class MeetingRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Meeting.objects.all()
+    serializer_class = MeetingSerializer
+
+    def get_object(self):
+        meeting_id = self.kwargs['meeting_id']
+        queryset = self.get_queryset()
+        obj = get_object_or_404(queryset, id=meeting_id)
+        return obj
+
     def destroy(self, request, *args, **kwargs):
         if self.request.method == 'DELETE' and not self.request.user.is_superuser:
-            raise PermissionDenied('just superuser can delete the event')
+            raise PermissionDenied('just superuser can delete the meeting')
     
         return super().destroy(request, *args, **kwargs)
 
@@ -144,6 +160,7 @@ class SendEmailView(generics.GenericAPIView):
     
     def post(self, request, *args, **kwargs):
         event_id = kwargs['event_id']
+        event = get_object_or_404(Event, id=event_id)
         serializer = SendEmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -152,13 +169,14 @@ class SendEmailView(generics.GenericAPIView):
         try:
             participants = self.get_queryset()
 
-            results = send_email.delay(participants, validated_data)
+            send_email_task.delay(participants, validated_data)
             
             data = {
                 'event': event_id,
-                'results': results
+                'event_name': event.name, 
+                'sending_to': list(participants.values_list("email_address", flat=True))
             }
-            return Response(data)
+            return Response(data) # status code NOTE
         
         except Event.DoesNotExist:
             return Response(
@@ -166,9 +184,6 @@ class SendEmailView(generics.GenericAPIView):
                 status=404
             ) 
         
-
-
-
 
 
 # ------------------------------  Survey ----------------------------------------
@@ -181,6 +196,11 @@ class SurveyListCreateView(generics.ListCreateAPIView):
         meeting_id = self.kwargs.get('meeting_id', None)
         queryset = Survey.objects.filter(event__id=event_id, meeting__id=meeting_id)
         return queryset
+    
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return []
+        return super().get_permissions()
     
 # ----------------------------------------------------------------------------
 class SurveyRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
@@ -202,6 +222,11 @@ class SurveyOptionListCreateView(generics.ListCreateAPIView):
         survey_id = self.kwargs['survey_id']
         queryset = Option.objects.filter(survey__id=survey_id)
         return queryset
+    
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return []
+        return super().get_permissions()
     
 # -----------------------------------------------------------------------------
 class SurveyOptionRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
@@ -238,10 +263,9 @@ class SurveyOpinionRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIVi
         obj = get_object_or_404(Opinion, id=opinion_id)
         return obj
     
-    def get_permissions(self):
-        if self.request.method in ['PATCH', 'PUT', 'DELETE']:
-            return [IsSuperUser]
-        
+    def get_permissions(self):        
+        if self.request.method in ['PATCH', 'PUT', 'DELETE'] and not self.request.user.is_superuser:
+            raise PermissionDenied('just superuser can update or delete the opinion')
         return super().get_permissions()
     
 # ------------------------------------------------------------------------------
@@ -252,7 +276,7 @@ class SurveySelectOptionListCreateView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [AllowAny]
+            return []
         return super().get_permissions()
 
 # -------------------------------------------------------------------------------
@@ -260,10 +284,14 @@ class SurveySelectOptionRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroy
     serializer_class = SurveySelectOptionSerializer
     queryset = SelectOption.objects.all()
 
-    def get_permissions(self):
-        if self.request.method in ['PATCH', 'PUT', 'DELETE']:
-            return [IsSuperUser]
-        
+    def get_object(self):
+        select_option_id = self.kwargs['select_option_id']
+        obj = get_object_or_404(SelectOption, id=select_option_id)
+        return obj
+
+    def get_permissions(self): 
+        if self.request.method in ['PATCH', 'PUT', 'DELETE'] and not self.request.user.is_superuser:
+            raise PermissionDenied('just superuser can update or delete the select_option')
         return super().get_permissions()
  
 
@@ -280,6 +308,7 @@ class SurveyOptionCounterView(APIView):
                 selected_option_count = SelectOption.objects.filter(survey=survey, option=option).count()
                 option_count.append(
                     {'option': option.id,
+                     'option_text': option.option_text,
                     'count': selected_option_count}
                     )
             survey_data = {
@@ -328,11 +357,12 @@ class SendEventSurveyEmailsView(APIView):
             event = get_object_or_404(Event, id=event_id)
             participants = Participant.objects.filter(event=event).exclude(attendance_time__isnull=True)
             
-            results = send_event_survey_emails_task.delay(participants, event)
+            send_event_survey_email_task.delay(participants, event)
 
             data = {
                 'event': event_id,
-                'results': results
+                'event_name': event.name,
+                'sending_to': list(participants.values_list("email_address", flat=True))
             }
             return Response(data)
         
@@ -352,11 +382,12 @@ class SendMeetingSurveyEmailsView(APIView):
             event = meeting.event
             participants = meeting.participants.all()
     
-            results = send_meeting_survey_emails_task.delay(participants, event, meeting)
+            send_meeting_survey_email_task.delay(participants, event, meeting)
 
             data = {
                 'meeting': meeting_id,
-                'results': results
+                'meeting_code': meeting.code,
+                'sending_to': list(participants.values_list("email_address", flat=True))
             }
             return Response(data)
         
@@ -365,6 +396,7 @@ class SendMeetingSurveyEmailsView(APIView):
                 {'error': f'event with id: {meeting_id} not found'},
                 status=404
             ) 
+        
 
 # ---------------------------------------------------------------------------
 class AdminViewSet(Filtration, viewsets.ModelViewSet):
@@ -394,7 +426,8 @@ class ProfileView(generics.RetrieveUpdateDestroyAPIView):
 
 
 # --------------------------------------------------------------------------------------------------
-class ExportView(View):
+class ExportView(generics.GenericAPIView):
+
     def get(self, request, *args, **kwargs):
         event_id = kwargs['event_id']
         event = Event.objects.get(id=event_id)
@@ -424,7 +457,7 @@ class ExportView(View):
             ws.append([
                 p.id,
                 p.num,
-                p.event.id,
+                p.event.name,
                 p.regestered_as,
                 p.title,
                 p.first_name,
@@ -448,16 +481,31 @@ class ExportView(View):
     
 
 # ------------------------------------------------------------------------
-class DocumentCreateView(generics.CreateAPIView):
+class DocumentCreateView(generics.GenericAPIView):
+    permission_classes = [IsSuperUser]
     queryset = Document.objects.all()
     serializer_class = DocumentSerializer
 
     def post(self, request, *args, **kwargs):
         event_id = kwargs['event_id']
 
+
         if 'file' in request.FILES:
             file  = request.FILES['file']
-            df = pd.read_excel(file)
+
+            if not check_file_extension(file, ['xlsx']):
+                return Response(
+                    {'message': 'the format supported is xlsx'},
+                    status=status.HTTP_201_CREATED
+                )
+            
+            if not check_file_size(file, 10):
+                return Response(
+                    {'message': 'max file size is 10MB'},
+                    status=status.HTTP_201_CREATED
+                )
+
+            df = pd.read_excel(file, dtype={'mobile_phone_number': str})
             df = df.replace(np.nan, None)
 
             try:
@@ -473,7 +521,7 @@ class DocumentCreateView(generics.CreateAPIView):
                                     {'error': f"event with id: '{row['event']}' not found"},
                                     status=404
                                 ) 
-
+                        print(row)
                         instance = Participant(
                             event = event,
                             regestered_as = row['regestered_as'].strip().lower(),
@@ -482,7 +530,7 @@ class DocumentCreateView(generics.CreateAPIView):
                             last_name = row['last_name'].strip().capitalize(),
                             education_level = row['education_level'].strip().lower(),
                             science_ranking = row['science_ranking'].strip().lower(),
-                            mobile_phone_number = row['mobile_phone_number'],
+                            mobile_phone_number = str(row['mobile_phone_number']).strip(),
                             membership_type = row['membership_type'].strip().lower(),
                             city = row['city'].strip().lower(),
                             email_address = row['email_address'].strip().lower(),
@@ -491,7 +539,9 @@ class DocumentCreateView(generics.CreateAPIView):
 
                         outer_index = index
                         instance.save()
-                        
+
+                Document.objects.all().delete()
+
             except IntegrityError as e:
                 raise (f"error at row{outer_index}") from e
             
@@ -504,14 +554,5 @@ class DocumentCreateView(generics.CreateAPIView):
             {'error': 'no file provided'},
             status=status.HTTP_400_BAD_REQUEST
         )
-
-
-# for index, row in data.iterrows():
-#     obj = YourModel(
-#         column1=row['column1'],
-#         column2=row['column2'],
-#         # assign other fields accordingly
-#     )
-#     obj.save()
 
              

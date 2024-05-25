@@ -141,7 +141,6 @@ class BooleanStatusQueryHandler:
         if self.status_query == 'false': 
             query_condition = {field_name: False}
             queryset = queryset.filter(**query_condition)
-            print('*'*70)
 
         elif self.status_query == 'true':
             query_condition = {field_name: True}
@@ -224,6 +223,8 @@ class EventFiltration(BaseFilter):
         
         temp_queryset = queryset
         temp_queryset = BooleanStatusQueryHandler(request, query_param='is_active').get_result(temp_queryset, field_name='is_active')
+        temp_queryset = BooleanStatusQueryHandler(request, query_param='survey_email_sent').get_result(temp_queryset, field_name='survey_email_sent')
+
         temp_queryset = SearchQueryHandler(request).get_result(temp_queryset, ('name', 'note'))
 
         return temp_queryset
@@ -236,6 +237,7 @@ class MeetingFiltration(BaseFilter):
         
         temp_queryset = queryset
         temp_queryset = SearchQueryHandler(request).get_result(temp_queryset, ('code', 'title', 'presenter', 'about_presenter', 'organizer', 'holding_place'))
+        temp_queryset = BooleanStatusQueryHandler(request, query_param='survey_email_sent').get_result(temp_queryset, field_name='survey_email_sent')
 
         return temp_queryset
     

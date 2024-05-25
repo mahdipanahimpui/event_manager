@@ -1,7 +1,7 @@
 from django.db.models.signals import pre_save, post_save
 from django.dispatch import receiver
 from .models import Participant
-from .tasks import send_attendanceـemailـevent_task
+from .tasks import send_event_attendanceـemailـtask
 from event_manager.settings import EMAIL_HOST_USER
 import qrcode
 from io import BytesIO
@@ -11,8 +11,8 @@ import os
 
 
 def qr_code_generator(id, num, phone, qr_code_field):
-        qrcode_img = qrcode.make(f'num{num}_id{id}_phone{phone}')
-        canvas = Image.new('RGB', (365, 365), 'white')
+        qrcode_img = qrcode.make(f'num{num}_id{id}')
+        canvas = Image.new('RGB', (295, 295), 'white')
         draw = ImageDraw.Draw(canvas)
         canvas.paste(qrcode_img)
         fname = f'num{num}_id{id}_phone{phone}.png'
@@ -29,7 +29,7 @@ def handle_null_field_filled(sender, instance, *args, **kwargs):
 
         if old_instance.attendance_time is None and instance.attendance_time is not None:
 
-            send_attendanceـemailـevent_task.delay(instance)
+            send_event_attendanceـemailـtask.delay(instance)
 
     except sender.DoesNotExist:
         pass
@@ -60,12 +60,12 @@ def capitalize_filed(sender, instance, **kwargs):
 @receiver(pre_save, sender=Participant)
 def lower_field(sender, instance, **kwargs):
     instance.regestered_as = instance.regestered_as.lower()
-    instance.title = instance.title.capitalize()
-    instance.education_level = instance.education_level.capitalize()
-    instance.science_ranking = instance.science_ranking.capitalize()
-    instance.membership_type = instance.membership_type.capitalize()
-    instance.city = instance.city.capitalize()
-    instance.email_address = instance.email_address.capitalize()
+    instance.title = instance.title.lower()
+    instance.education_level = instance.education_level.lower()
+    instance.science_ranking = instance.science_ranking.lower()
+    instance.membership_type = instance.membership_type.lower()
+    instance.city = instance.city.lower()
+    instance.email_address = instance.email_address.lower()
 
 
 

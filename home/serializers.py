@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from django.core.mail import send_mail
+from . tasks import send_meeting_attendance_email_task
 from event_manager.settings import EMAIL_HOST_USER
 
 from home.models import (
@@ -81,7 +81,6 @@ class ParticipantSerializer(serializers.ModelSerializer):
                     f"Participant with the same mobile_phone_number: {mobile_phone_number} already exists for for this event with event: {event.name} with event_id: {event.id}."
                 )
 
-
             if Participant.objects.filter(event=event, email_address=email_address).exists():
                 raise serializers.ValidationError(
                     f"Participant with the same email_address: {email_address} already exists for this event with event: {event.name} with event_id: {event.id}."
@@ -89,7 +88,6 @@ class ParticipantSerializer(serializers.ModelSerializer):
         
         except Event.DoesNotExist:
             pass
-
 
 
         return super().validate(attrs)
@@ -135,7 +133,7 @@ class MeetingSerializer(serializers.ModelSerializer):
             'remove_participants'
         ]
 
-        read_only_fields = [*base_read_only_fields]
+        read_only_fields = [*base_read_only_fields, 'participants']
 
 
     def validate(self, attrs):
@@ -163,19 +161,23 @@ class MeetingSerializer(serializers.ModelSerializer):
 
 
         for participant in add_participants:
-            meeting.participants.add(participant)
-            try:
-                subject = f'{participant.event.name}'
-                message = f"{participant.first_name} {instance.last_name} عزیز حضور شما در نشست با کد{validated_data['code']} ثبت شد"
-                recipient_list = [participant.email_address]
-                send_mail(subject, message, EMAIL_HOST_USER, recipient_list, fail_silently=True)
+
+            if participant not in meeting.participants.all():
+
+                meeting.participants.add(participant)
+                try:
+                    send_meeting_attendance_email_task.delay(participant, meeting=meeting)
+                
+                except Participant.DoesNotExist:
+                    pass
             
-            except Participant.DoesNotExist:
-                pass
 
 
         for participant in remove_participants:
-            meeting.participants.remove(participant)
+
+            if participant in meeting.participants.all():
+
+                meeting.participants.remove(participant)
 
         return meeting
     
@@ -203,8 +205,8 @@ class SurveyOpinionSerializer(serializers.ModelSerializer):
 
 
     def validate(self, attrs):
-        survey = attrs.get('survey')
-        participant = attrs.get('participant')
+        survey = attrs.get('survey', self.instance.survey)
+        participant = attrs.get('participant', self.instance.survey)
 
         try:
 
@@ -239,18 +241,20 @@ class SurveySelectOptionSerializer(serializers.ModelSerializer):
 
         try:
 
-            if survey.pk != option.survey.pk:
-                raise serializers.ValidationError(f"the survey with id:'{survey.pk}' does not have option with id:'{option.pk}'")
- 
+            if survey and survey.id != option.survey.id:
+                raise serializers.ValidationError(f"the survey with id:'{survey.id}' does not have option with id:'{option.id}'")
+
+
             if SelectOption.objects.filter(survey=survey, participant=participant).exists():
-                raise serializers.ValidationError(f"The participant id:{participant.id} has already answered this survey")
+                raise serializers.ValidationError(f"The participant with id:{participant.id} has already answered this survey")
             
-            if survey.meeting is not None:
-                if participant not in survey.meeting.participants.all():
-                    raise serializers.ValidationError(f"The participant id:{participant.id} hasn`t participate in the meeting id:{survey.meeting.id}")
-            else:
-                if participant.event.id != survey.event.id:
-                    raise serializers.ValidationError(f"The participant id:{participant.id} hasn`t participate in the event id:{survey.event.id}")
+            if survey and participant:
+                if survey.meeting is not None:
+                    if participant not in survey.meeting.participants.all():
+                        raise serializers.ValidationError(f"The participant with id:{participant.id} hasn`t participate in the meeting id:{survey.meeting.id}")
+                else:
+                    if participant.event.id != survey.event.id:
+                        raise serializers.ValidationError(f"The participant with id:{participant.id} hasn`t participate in the event id:{survey.event.id}")
 
 
         except SelectOption.DoesNotExist:
@@ -335,6 +339,7 @@ class UserSerializer(serializers.ModelSerializer):
     
 
     def create(self, validated_data):
+        validated_data['is_active'] = True
         user = super().create(validated_data)
         user = self.set_user_password(user, validated_data)
         return user
@@ -351,6 +356,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 class SendEmailSerializer(serializers.Serializer):
     subject = serializers.CharField()
+    title = serializers.CharField()
     text = serializers.CharField(style={'base_template': 'textarea.html'})
     is_name_at_first = serializers.BooleanField()
 

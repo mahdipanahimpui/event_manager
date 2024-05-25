@@ -1,0 +1,11 @@
+{% extends 'email_templates/base.html' %}
+
+{% block header_title %}نظرسنجی{% endblock %}
+
+{% block content %}
+
+<p>{{ participant.first_name }} {{ participant.last_name }} عزیز،</p>
+<p>ممنون می‌شویم در نظرسنجی نشست باکد:  <b>{{ meeting.code }}</b> و موضوع:  <b>{{ meeting.title }}</b>  شرکت کنید.</p>
+<p><a href="{{link}}">لینک شرکت در نظرسنجی</a></p>
+
+{% endblock %}

@@ -3,16 +3,17 @@ from utils import validators
 from rest_framework import serializers
 import os
 import re
-import math
-import numpy as np
-
-
-from django.core.validators import MinValueValidator, MaxValueValidator
+from functools import partial
+from django.core.validators import MinValueValidator, MaxValueValidator, FileExtensionValidator
 from django.core.exceptions import ValidationError
 
 
-
-
+# ----------------------------------------------------------------------------
+def validate_max_file_size(value, max_size):
+    # max_size = 10 * 1024 * 1024
+    if value.size > max_size:
+        raise ValidationError(f"The file size should not exceed {max_size} bytes.")
+   
 
 # ------------------------------------------------------------------------------------- 
 def validate_uniqueness_by_event(event, field, field_name):
@@ -74,7 +75,6 @@ def validate_required_fields(instance, required_fileds):
             )
         
         if not str(field_value).strip():
-            print(field_value)
             raise serializers.ValidationError(
                 f"the field {field_name} with email: '{instance.email_address}' is required or provided in incorect way"
             )
@@ -99,6 +99,8 @@ class Event(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     note = models.TextField(max_length=2000, null=True, blank=True)
+
+    # survey_email_sent = models.BooleanField(default=False)
 
 # -----------------------------------------------------------------
 class Participant(models.Model):
@@ -167,23 +169,6 @@ class Participant(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
 
-    def clean(self):
-        if Participant.objects.filter(event=self.event, mobile_phone_number=self.mobile_phone_number).exists():
-            raise ValidationError(
-                f"Participant with the same mobile_phone_number: {self.mobile_phone_number} already exists for for this event with event: {self.event.name} with event_id: {self.event.id}."
-            )
-
-
-        if Participant.objects.filter(event=self.event, email_address=self.email_address).exists():
-             raise ValidationError(
-                 f"Participant with the same email_address: {self.email_address} already exists for this event with event: {self.event.name} with event_id: {self.event.id}."
-             )
-        
-        return super().clean()
-
-
-
-
     def save(self, *args, **kwargs):
         if self._state.adding: 
             """
@@ -223,6 +208,8 @@ class Meeting(models.Model):
     organizer = models.CharField(max_length=200, null=True, blank=True)
     holding_place = models.TextField(max_length=500)
     participants = models.ManyToManyField(Participant)
+    # survey_email_sent = models.BooleanField(default=False)
+
 
     def __str__(self):
         return f'cod: {self.code}  |  title: {self.title}'
@@ -240,10 +227,10 @@ class Survey(models.Model):
 # -----------------------------------------------------------------------------------------
 class Option(models.Model):
     survey = models.ForeignKey(Survey, on_delete=models.CASCADE)
-    option_field = models.CharField(max_length=200)
+    option_text = models.CharField(max_length=200)
 
     def __str__(self):
-        return f'survey: {self.survey.pk}  |  option: {self.option_field}'
+        return f'survey: {self.survey.pk}  |  option: {self.option_text}'
 
 # ----------------------------------------------------------------------------------------
 class SelectOption(models.Model):
@@ -264,7 +251,7 @@ class SelectOption(models.Model):
         return super().clean()
 
     def __str__(self):
-        return f'participant: {self.participant.email_address}  |  survey: {self.survey.id}  |  option: {self.option.option_field}'
+        return f'participant: {self.participant.email_address}  |  survey: {self.survey.id}  |  option: {self.option.option_text}'
 
 
 # ------------------------------------------------------------------------------------------
@@ -284,9 +271,10 @@ class Opinion(models.Model):
 
 # --------------------------------------------------------------------------------------------
 class Document(models.Model):
-    file = models.FileField(upload_to='documents/')
-
-
+    file = models.FileField(upload_to='documents/', validators=[
+        partial(validate_max_file_size, max_size=10 * 1024 * 1024),
+        FileExtensionValidator(allowed_extensions=['xlsx']),
+    ])
 
 
 

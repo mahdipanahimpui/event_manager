@@ -1,0 +1,13 @@
+{% extends 'email_templates/base.html' %}
+
+{% block header_title %}{{ title }}{% endblock %}
+
+{% block content %}
+
+{% if is_name_at_first == True %}
+    <p>{{ participant.first_name }} {{ participant.last_name }} عزیز،</p>
+{% endif %}
+
+<p>{{ text }}</p>
+
+{% endblock %}

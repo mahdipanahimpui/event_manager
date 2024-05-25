@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+        font-family: Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+        color: black;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            direction: rtl;
+            text-align: right;
+            border: 2px solid #8888882f;
+            border-radius: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .content {
+            margin-bottom: 30px;
+            text-align: justify;
+            direction: right;
+        }
+        .footer {
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+        }
+    </style>
+    <title>Email Title</title>
+
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>{% block header_title %}{% endblock %}</h1>
+      </div>
+      <div class="content">
+        {% block content %}{% endblock %}
+
+      </div>
+      <!-- <div class="footer">
+        <p>&copy; Company Name, All rights reserved.</p>
+        <p>Email: <a href="mailto:info@example.com">info@example.com</a></p>
+      </div> -->
+    </div>
+  </body>
+</html>

@@ -12,6 +12,10 @@ urlpatterns = [
     path('events/<int:event_id>/send_email/', views.SendEmailView.as_view(), name='send_email_view'),
     path('events/<int:event_id>/export/', views.ExportView.as_view(), name='export_view'),
     path('events/<int:event_id>/import/', views.DocumentCreateView.as_view(), name='import_view'),
+    path('events/<int:event_id>/meetings/', views.MeetingListCreateView.as_view(), name='meeting_list_create_view'),
+    path('events/<int:event_id>/meetings/<int:meeting_id>/', views.MeetingRetrieveUpdateDestroyView.as_view(), name='meeting_retrieve_update_destroy_view'),
+
+
 
     path('events/<int:event_id>/surveys/', views.SurveyListCreateView.as_view(), name='event_survey_list_create_view'),
     path('events/<int:event_id>/meetings/<int:meeting_id>/surveys/', views.SurveyListCreateView.as_view(), name='meeting_survey_list_create_view'),
@@ -25,10 +29,10 @@ urlpatterns = [
     path('options/<int:option_id>/', views.SurveyOptionRetrieveUpdateDestroyView.as_view(), name='survey_option_retrieve_update_destroy_view'),
 
     path('surveys/<int:survey_id>/opinions/', views.SurveyOpinionListCreateView.as_view(), name='survey_opinion_list_create_view'),
-    path('survey_opinions/<int:opinion_id>/', views.SurveyOpinionRetrieveUpdateDestroyView.as_view(), name='survey_opinion_retrieve_update_destroy_view'),
+    path('surveys/opinions/<int:opinion_id>/', views.SurveyOpinionRetrieveUpdateDestroyView.as_view(), name='survey_opinion_retrieve_update_destroy_view'),
 
     path('surveys/select_options/', views.SurveySelectOptionListCreateView.as_view(), name='survey_select_option_list_create_view'),
-    path('survey_select_options/<int:select_option_id>/', views.SurveySelectOptionRetrieveUpdateDestroyView.as_view(), name='survey_select_option_retrieve_update_destroy_view'),
+    path('surveys/select_options/<int:select_option_id>/', views.SurveySelectOptionRetrieveUpdateDestroyView.as_view(), name='survey_select_option_retrieve_update_destroy_view'),
     path('surveys/<int:survey_id>/opinion_counter/', views.SurveyOpinionCounterView.as_view(), name='surveys_opinion_counter_view'),
     
     path('profile/', views.ProfileView.as_view(), name='profile_view'),
@@ -39,7 +43,6 @@ urlpatterns = [
 #-------------------------------------------------------------------
 router = routers.SimpleRouter()
 router.register('events', views.EventViewSet)
-router.register('meetings', views.MeetingViewSet)
 router.register('admins', views.AdminViewSet)
 
 
