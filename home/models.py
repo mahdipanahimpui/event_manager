@@ -103,6 +103,9 @@ class Event(models.Model):
     survey_email_sent = models.BooleanField(default=False)
     sending_attendance_email = models.BooleanField()
 
+    def __str__(self):
+        return str(self.name)
+
 # -----------------------------------------------------------------
 class Participant(models.Model):
     # seceond element is human-readable
