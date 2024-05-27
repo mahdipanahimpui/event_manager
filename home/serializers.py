@@ -4,6 +4,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from . tasks import send_meeting_attendance_email_task
 from event_manager.settings import EMAIL_HOST_USER
+import datetime
+import pytz
 
 from home.models import (
     Event,
@@ -166,8 +168,11 @@ class MeetingSerializer(serializers.ModelSerializer):
         for participant in add_participants:
 
             if participant not in meeting.participants.all():
-
+                
                 meeting.participants.add(participant)
+                if not participant.attendance_time:
+                    participant.attendance_time = datetime.datetime.now(pytz.timezone('Asia/Tehran'))
+                    participant.save()
                 try:
                     send_meeting_attendance_email_task.delay(participant, meeting=meeting)
                 
@@ -389,7 +394,7 @@ class EmailLogListSerializer(serializers.ModelSerializer):
         rep['event'] = instance.event.name
         if instance.meeting:
             rep['meeting'] = instance.meeting.code 
-            
+
         return rep
     
 # -----------------------------------------------------------------------------------
