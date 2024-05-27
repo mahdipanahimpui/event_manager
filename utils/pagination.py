@@ -9,7 +9,7 @@ class EventPagination(PageNumberPagination):
 
 # -------------------------------------------------------------
 class ParticipantPagination(PageNumberPagination):
-    page_size = 50
+    page_size = 500
     page_query_param = 'page'
     page_size_query_param = 'page_size'
     max_page_size = 1000
@@ -55,3 +55,10 @@ class AdminPagination(PageNumberPagination):
     page_query_param = 'page'
     page_size_query_param = 'page_size'
     max_page_size = 1000
+
+# ----------------------------------------------------------------
+class EmailLogPagination(PageNumberPagination):
+    page_size = 500
+    page_query_param = 'page'
+    page_size_query_param = 'page_size'
+    max_page_size = 3000

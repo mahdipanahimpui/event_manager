@@ -13,7 +13,8 @@ from home.models import (
     SelectOption,
     Opinion,
     Option,
-    Document
+    Document,
+    EmailLog
 )
 
 # ---------------------------------------------------
@@ -130,7 +131,9 @@ class MeetingSerializer(serializers.ModelSerializer):
             'holding_place',
             'participants',
             'add_participants',
-            'remove_participants'
+            'remove_participants',
+            'survey_email_sent',
+            'sending_attendance_email'
         ]
 
         read_only_fields = [*base_read_only_fields, 'participants']
@@ -366,5 +369,47 @@ class DocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Document
         fields = '__all__'
+
+# -----------------------------------------------------------------------------------
+class EmailLogListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmailLog
+        fields = [
+            'id', 
+            'event',
+            'meeting',
+            'when',
+            'to',
+            'subject',
+            'title',
+        ]
+
+    def to_representation(self, instance):
+        rep = super(EmailLogListSerializer, self).to_representation(instance)
+        rep['event'] = instance.event.name
+        if instance.meeting:
+            rep['meeting'] = instance.meeting.code 
+            
+        return rep
+    
+# -----------------------------------------------------------------------------------
+class EmailLogRetrieveSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmailLog
+        fields = '__all__'
+
+    def to_representation(self, instance):
+        rep = super(EmailLogRetrieveSerializer, self).to_representation(instance)
+        rep['event'] = instance.event.name
+        if instance.meeting:
+            rep['meeting'] = instance.meeting.code 
+
+        return rep
+
+    
+
+
+
+
 
 

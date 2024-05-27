@@ -37,6 +37,9 @@ urlpatterns = [
     
     path('profile/', views.ProfileView.as_view(), name='profile_view'),
 
+    path('events/<int:event_id>/qrcodes/', views.DownloadQrcodeView.as_view(), name='download_qrcode_view'),
+    path('events/<int:event_id>/email_logs/', views.EmailLogListView.as_view(), name='email_log_list_view'),
+    path('events/<int:event_id>/email_logs/<int:email_log_id>/', views.EmailLogRetrieveView.as_view(), name='email_log_retrieve_view'),
 
 ]
 

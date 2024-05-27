@@ -100,7 +100,8 @@ class Event(models.Model):
 
     note = models.TextField(max_length=2000, null=True, blank=True)
 
-    # survey_email_sent = models.BooleanField(default=False)
+    survey_email_sent = models.BooleanField(default=False)
+    sending_attendance_email = models.BooleanField()
 
 # -----------------------------------------------------------------
 class Participant(models.Model):
@@ -208,7 +209,9 @@ class Meeting(models.Model):
     organizer = models.CharField(max_length=200, null=True, blank=True)
     holding_place = models.TextField(max_length=500)
     participants = models.ManyToManyField(Participant)
-    # survey_email_sent = models.BooleanField(default=False)
+    survey_email_sent = models.BooleanField(default=False)
+    sending_attendance_email = models.BooleanField()
+
 
 
     def __str__(self):
@@ -278,7 +281,18 @@ class Document(models.Model):
 
 
 
-
+# --------------------------------------------------------------------------------------------
+class EmailLog(models.Model):
+    """
+    Model to store all the outgoing emails.
+    """
+    when = models.DateTimeField(auto_now_add=True)
+    to = models.EmailField(max_length=256)
+    subject = models.CharField(null=True, blank=True, max_length=256)
+    title = models.CharField(null=True, blank=True, max_length=256)
+    body = models.TextField(max_length=2048)
+    event = models.ForeignKey(Event, on_delete=models.CASCADE)
+    meeting = models.ForeignKey(Meeting, null=True, blank=True, on_delete=models.CASCADE)
 
 
 

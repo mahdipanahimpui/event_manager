@@ -3,23 +3,23 @@ from event_manager.settings import EMAIL_HOST_USER
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
-from urllib.parse import quote
-
+from .models import EmailLog
 
 # --------------------------------------------------------------------------
 def send_event_survey_email(participants, event):
-    # results = []
 
     for participant in participants:
         print(f"sending event (id: {event.id}, code: {event.name}) survey email to [{participant.email_address}] {'>'*5}", end='')
 
         subject = f'{event.name}'
         link = f'{settings.DOMAIN}/participate_survey/?participant_id={participant.id}&event_id={event.id}'
+        title = 'نظرسنجی'
         
         context = {
             'participant': participant,
             'event': event,
             'link': link,
+            'title': title
         }
 
         html_content = render_to_string('email_templates/event_survey.html', context)
@@ -28,32 +28,28 @@ def send_event_survey_email(participants, event):
         msg = EmailMultiAlternatives(subject, html_content, settings.EMAIL_HOST_USER, recipient_list)
         msg.attach_alternative(html_content, "text/html")
         msg.send()
+        EmailLog.objects.create(to=recipient_list[0], subject=subject, body=html_content, event=event, title=title)
 
         print('sent OK')
-
-
-    #     results.append(
-    #         {'participant': participant.id,
-    #         'email': participant.email_address}
-    #         )
     
-    # return results
-
+    event.survey_email_sent = True
+    event.save()
 
 # --------------------------------------------------------------------------
 def send_meeting_survey_email(participants, event, meeting):
-    # results = []
 
     for participant in participants:
         print(f"sending meeting (id: {meeting.id}, code: {meeting.code}) survey email to [{participant.email_address}] {'>'*5}", end='')
 
         subject = f'{event.name}'
         link = f'{settings.DOMAIN}/participate_survey/?participant_id={participant.id}&event_id={event.id}&meeting_id={meeting.id}'
+        title = 'نظرسنجی'
         context = {
             'participant': participant,
             'event': event,
             'meeting': meeting,
-            'link': link
+            'link': link,
+            'title': title
         }
 
         html_content = render_to_string('email_templates/meeting_survey.html', context)
@@ -62,21 +58,16 @@ def send_meeting_survey_email(participants, event, meeting):
         msg = EmailMultiAlternatives(subject, html_content, settings.EMAIL_HOST_USER, recipient_list)
         msg.attach_alternative(html_content, "text/html")
         msg.send()
+        EmailLog.objects.create(to=recipient_list[0], subject=subject, body=html_content, event=event, meeting=meeting, title=title)
+
 
         print('sent OK')
-
-
-    #     results.append(
-    #         {'participant': participant.id,
-    #         'email': participant.email_address}
-    #         )
     
-    # return results
-
+    meeting.survey_email_sent = True
+    meeting.save()
 
 # --------------------------------------------------------------------------
 def send_email(participants, validated_data):
-    # results = []
 
     for participant in participants:
 
@@ -102,56 +93,58 @@ def send_email(participants, validated_data):
         msg = EmailMultiAlternatives(subject, html_content, settings.EMAIL_HOST_USER, recipient_list)
         msg.attach_alternative(html_content, "text/html")
         msg.send()
+        EmailLog.objects.create(to=recipient_list[0], subject=subject, body=html_content, event=participant.event, title=title)
+
 
         print('sent OK')
 
-        # results.append(
-        #     {'participant': participant.id,
-        #     'email': participant.email_address}
-        #     )
-        
-        # return results
         
 # --------------------------------------------------------------------------
 def send_event_attendanceـemail(participant):
 
-    print(f"sending event (id: {participant.event.id}, event_name: {participant.event.name}) attendance email to [{participant.email_address}] {'>'*5}", end='')
+    if participant.event.sending_attendance_email:
+        print(f"sending event (id: {participant.event.id}, event_name: {participant.event.name}) attendance email to [{participant.email_address}] {'>'*5}", end='')
 
-    subject = f'{participant.event.name}'
+        subject = f'{participant.event.name}'
+        title = 'ثبت حضور'
 
-    context = {
-        'participant': participant,
-        'event': participant.event
-    }
+        context = {
+            'participant': participant,
+            'event': participant.event, 
+            'title': title
+        }
 
-    html_content = render_to_string('email_templates/event_attendance.html', context)
-    recipient_list = [participant.email_address]
+        html_content = render_to_string('email_templates/event_attendance.html', context)
+        recipient_list = [participant.email_address]
 
-    msg = EmailMultiAlternatives(subject, html_content, settings.EMAIL_HOST_USER, recipient_list)
-    msg.attach_alternative(html_content, "text/html")
-    msg.send()
+        msg = EmailMultiAlternatives(subject, html_content, settings.EMAIL_HOST_USER, recipient_list)
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+        EmailLog.objects.create(to=recipient_list[0], subject=subject, body=html_content, event=participant.event, title=title)
 
-    print('sent OK')
+        print('sent OK')
 
 
 # --------------------------------------------------------------------------
 def send_meeting_attendance_email(participant, meeting):
-    print(f"sending meeting (id: {meeting.id}, code: {meeting.code}) attendance email to [{participant.email_address}] {'>'*5}", end='')
+    if meeting.sending_attendance_email:
+        print(f"sending meeting (id: {meeting.id}, code: {meeting.code}) attendance email to [{participant.email_address}] {'>'*5}", end='')
 
-    subject = f'{participant.event.name}'
+        subject = f'{participant.event.name}'
+        title = 'ثبت حضور'
 
-    context = {
-        'participant': participant,
-        'meeting': meeting
-    }
+        context = {
+            'participant': participant,
+            'meeting': meeting,
+            'title': title
+        }
 
-    # message = f"{participant.first_name} {participant.last_name} عزیز حضور شما در نشست با کد{meeting_code} ثبت شد"
+        html_content = render_to_string('email_templates/meeting_attendance.html', context)
+        recipient_list = [participant.email_address]
 
-    html_content = render_to_string('email_templates/meeting_attendance.html', context)
-    recipient_list = [participant.email_address]
+        msg = EmailMultiAlternatives(subject, html_content, settings.EMAIL_HOST_USER, recipient_list)
+        msg.attach_alternative(html_content, "text/html")
+        msg.send()
+        EmailLog.objects.create(to=recipient_list[0], subject=subject, body=html_content, event=participant.event, meeting=meeting, title=title)
 
-    msg = EmailMultiAlternatives(subject, html_content, settings.EMAIL_HOST_USER, recipient_list)
-    msg.attach_alternative(html_content, "text/html")
-    msg.send()
-
-    print('sent OK')
+        print('sent OK')

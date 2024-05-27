@@ -4,19 +4,19 @@ from django.contrib.auth import get_user_model
 import pandas as pd
 from django.db import IntegrityError, transaction
 from utils.validators import check_file_extension, check_file_size
-
 from rest_framework import viewsets, generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.generics import get_object_or_404
-from rest_framework.permissions import AllowAny
 from permissions import IsSuperUser
-
+from django.conf import settings
 from event_manager.settings import EMAIL_HOST_USER
 from django.http import HttpResponse
 from openpyxl import Workbook
 import numpy as np
+from shutil import make_archive
+from wsgiref.util import FileWrapper
 
 
 from . tasks import (
@@ -32,7 +32,8 @@ from . filtration import (
     ParticipantFiltration, 
     EventFiltration, 
     MeetingFiltration,
-    UserFiltration
+    UserFiltration,
+    EmailLogFiltration
 )
 
 
@@ -46,8 +47,9 @@ from .serializers import (
     SurveySelectOptionSerializer,
     UserSerializer, 
     SendEmailSerializer,
-    DocumentSerializer
-
+    DocumentSerializer,
+    EmailLogListSerializer,
+    EmailLogRetrieveSerializer
 )
 
 from utils.pagination import (
@@ -58,7 +60,8 @@ from utils.pagination import (
     SurveyOptionPagination,
     SurveyOpinionPagination,
     SurveySelectOptionPagination,
-    AdminPagination
+    AdminPagination, 
+    EmailLogPagination
 )
 
 from .models import(
@@ -70,6 +73,7 @@ from .models import(
     Opinion,
     SelectOption,
     Document,
+    EmailLog
 )
 
 # -------------------------------------------------------------------
@@ -555,4 +559,52 @@ class DocumentCreateView(generics.GenericAPIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+
+# -------------------------------------------------------------------------
+class DownloadQrcodeView(generics.GenericAPIView):
+    
+    def get(self, request, *args, **kwargs):
+        event_id = kwargs['event_id']
+        event = get_object_or_404(Event, id=event_id)
+        qrcode_dir = f'{settings.MEDIA_ROOT}/qr_codes/eventid{event.id}_{event.name}'
+        archive_file_name = f'{event.name}_qrcodes'
+        
+        path_to_zip = make_archive(qrcode_dir, "zip", qrcode_dir)
+        response = HttpResponse(FileWrapper(open(path_to_zip,'rb')), content_type='application/zip')
+        response['Content-Disposition'] = 'attachment; filename="{filename}.zip"'.format(
+            filename = archive_file_name.replace(" ", "_")
+        )
+        return response
+    
+
+# --------------------------------------------------------------------------
+class EmailLogListView(Filtration ,generics.ListAPIView):
+    queryset = EmailLog.objects.all()
+    serializer_class = EmailLogListSerializer
+    filtration_class = EmailLogFiltration
+
+    def get_queryset(self):
+        event_id = self.kwargs['event_id']
+        queryset = EmailLog.objects.filter(event__id=event_id)
+        return queryset
+    
+# --------------------------------------------------------------------------
+class EmailLogRetrieveView(generics.ListAPIView):
+    queryset = EmailLog.objects.all()
+    serializer_class = EmailLogRetrieveSerializer
+
+    def get_queryset(self):
+        event_id = self.kwargs['event_id']
+        queryset = EmailLog.objects.filter(event__id=event_id)
+        return queryset
+    
+    def get_object(self):
+        email_log_id = self.kwargs['email_log_id']
+        queryset = self.get_queryset()
+        obj = get_object_or_404(queryset, id=email_log_id)
+        return obj
+        
+    
+
+        
              

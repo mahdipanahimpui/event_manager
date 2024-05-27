@@ -172,6 +172,24 @@ class RangeQueryHandler:
             queryset = queryset.filter(**query_condition)
 
         return queryset
+    
+
+# --------------------------------------------------------------------------------------------------
+class RelationIdsQueryHandler:
+
+    def __init__(self, request, query_param):
+        try: 
+            self.relation_id_query = request.GET.get(query_param)
+            self.relation_id_query =  int(self.relation_id_query) if self.relation_id_query.strip().isdigit() else None
+        except (SyntaxError, NameError, AttributeError):
+            self.relation_id_query = None
+
+    def get_result(self, queryset, field_name):
+        if self.relation_id_query is not None:
+            query_condition = {f'{field_name}__id': self.relation_id_query}
+            queryset = queryset.select_related(field_name)
+            queryset = queryset.filter(**query_condition)
+        return queryset
 
 
 
@@ -224,6 +242,7 @@ class EventFiltration(BaseFilter):
         temp_queryset = queryset
         temp_queryset = BooleanStatusQueryHandler(request, query_param='is_active').get_result(temp_queryset, field_name='is_active')
         temp_queryset = BooleanStatusQueryHandler(request, query_param='survey_email_sent').get_result(temp_queryset, field_name='survey_email_sent')
+        temp_queryset = BooleanStatusQueryHandler(request, query_param='sending_attendance_email').get_result(temp_queryset, field_name='sending_attendance_email')
 
         temp_queryset = SearchQueryHandler(request).get_result(temp_queryset, ('name', 'note'))
 
@@ -238,6 +257,7 @@ class MeetingFiltration(BaseFilter):
         temp_queryset = queryset
         temp_queryset = SearchQueryHandler(request).get_result(temp_queryset, ('code', 'title', 'presenter', 'about_presenter', 'organizer', 'holding_place'))
         temp_queryset = BooleanStatusQueryHandler(request, query_param='survey_email_sent').get_result(temp_queryset, field_name='survey_email_sent')
+        temp_queryset = BooleanStatusQueryHandler(request, query_param='sending_attendance_email').get_result(temp_queryset, field_name='sending_attendance_email')
 
         return temp_queryset
     
@@ -253,4 +273,16 @@ class UserFiltration(BaseFilter):
         temp_queryset = filtration_queryset
         temp_queryset = self.handle_filter(request, temp_queryset)
         temp_queryset = OrderingQueryHandler(request, query_param='order_by', ascending_by_default=True).get_result(temp_queryset)
+        return temp_queryset
+    
+
+
+# -------------------------------------------------------------------------------------
+class EmailLogFiltration(BaseFilter):
+    def handle_filter(self, request, queryset):
+        
+        temp_queryset = queryset
+        temp_queryset = RelationIdsQueryHandler(request, query_param='meeting').get_result(temp_queryset, field_name='meeting')
+        temp_queryset = SearchQueryHandler(request).get_result(temp_queryset, ('to', 'subject', 'body', 'subject'))
+
         return temp_queryset
