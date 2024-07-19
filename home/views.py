@@ -152,9 +152,10 @@ class MeetingRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
 
 
 # -------------------------------------------------------------  ---------
-class SendEmailView(generics.GenericAPIView):
-    # permission_classes = [AllowAny] ### NOTE: remove it
+class SendEmailView(Filtration, generics.GenericAPIView):
+    permission_classes = [IsSuperUser]
     filtration_class = ParticipantFiltration
+    
 
     def get_queryset(self):
         event_id = self.kwargs['event_id']
@@ -215,6 +216,11 @@ class SurveyRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
         surey_id = self.kwargs['survey_id']
         obj = get_object_or_404(Survey, id=surey_id)
         return obj
+    
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return []
+        return super().get_permissions()
     
 
 # ----------------------------------------------------------------------------
@@ -431,6 +437,7 @@ class ProfileView(generics.RetrieveUpdateDestroyAPIView):
 
 # --------------------------------------------------------------------------------------------------
 class ExportView(generics.GenericAPIView):
+    # permission_classes = []
 
     def get(self, request, *args, **kwargs):
         event_id = kwargs['event_id']
@@ -562,7 +569,6 @@ class DocumentCreateView(generics.GenericAPIView):
 
 # -------------------------------------------------------------------------
 class DownloadQrcodeView(generics.GenericAPIView):
-    
     def get(self, request, *args, **kwargs):
         event_id = kwargs['event_id']
         event = get_object_or_404(Event, id=event_id)
@@ -582,6 +588,7 @@ class EmailLogListView(Filtration ,generics.ListAPIView):
     queryset = EmailLog.objects.all()
     serializer_class = EmailLogListSerializer
     filtration_class = EmailLogFiltration
+    pagination_class = EmailLogPagination
 
     def get_queryset(self):
         event_id = self.kwargs['event_id']

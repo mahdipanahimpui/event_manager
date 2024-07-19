@@ -283,6 +283,6 @@ class EmailLogFiltration(BaseFilter):
         
         temp_queryset = queryset
         temp_queryset = RelationIdsQueryHandler(request, query_param='meeting').get_result(temp_queryset, field_name='meeting')
-        temp_queryset = SearchQueryHandler(request).get_result(temp_queryset, ('to', 'subject', 'body', 'subject'))
+        temp_queryset = SearchQueryHandler(request).get_result(temp_queryset, ('to', 'subject', 'body', 'title'))
 
         return temp_queryset

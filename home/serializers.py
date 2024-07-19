@@ -142,13 +142,12 @@ class MeetingSerializer(serializers.ModelSerializer):
 
 
     def validate(self, attrs):
-        event_id = attrs.get('event_id')
+        event = attrs.get('event')
         code = attrs.get('code')
 
         try:
-            event = Event.objects.get(id=event_id)
 
-            if Participant.objects.filter(event=event, code=code).exists():
+            if Meeting.objects.filter(event=event, code=code).exists():
                 raise serializers.ValidationError("meeting with the same code already exists for this event.")
 
         except Event.DoesNotExist:

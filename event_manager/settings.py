@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'import_export',
     'rest_framework_simplejwt',
     'django_cleanup.apps.CleanupConfig', # should go after your apps
+    'corsheaders',
 
 ]
 
@@ -56,6 +57,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -108,11 +110,11 @@ DATABASES = {
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        # 'rest_framework.authentication.',
+        # 'rest_framework.authentication.JWTAuthentication',
 
 
-        # note: has expire time, saves in the local storage of browser
-        # to use jwt,
+    #     # note: has expire time, saves in the local storage of browser
+    #     # to use jwt,
         'rest_framework_simplejwt.authentication.JWTAuthentication'
 
     ],
@@ -191,6 +193,8 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     # OTHER SETTINGS
+    'AUTHENTICATION_WHITELIST': None,
+
 }
 
 
@@ -238,3 +242,8 @@ SIMPLE_JWT = {
 
 
 DOMAIN = 'http://www.127.0.0.1:8000'
+
+
+CORS_ALLOWED_ORIGINS = [
+    DOMAIN,
+]

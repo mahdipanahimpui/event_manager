@@ -23,7 +23,7 @@ urlpatterns = [
     path('surveys/<int:survey_id>/', views.SurveyRetrieveUpdateDestroyView.as_view(), name='survey_retrieve_update_destroy_view'),
     path('surveys/<int:survey_id>/options/', views.SurveyOptionListCreateView.as_view(), name='survey_option_list_create_view'),
     path('surveys/<int:survey_id>/option_counter/', views.SurveyOptionCounterView.as_view(), name='surveys_option_counter_view'),
-    path('options/<int:option_id>/', views.SurveyOptionRetrieveUpdateDestroyView.as_view(), name='survey_option_retrieve_update_destroy_view'),
+    path('surveys/options/<int:option_id>/', views.SurveyOptionRetrieveUpdateDestroyView.as_view(), name='survey_option_retrieve_update_destroy_view'),
 
     path('surveys/<int:survey_id>/opinions/', views.SurveyOpinionListCreateView.as_view(), name='survey_opinion_list_create_view'),
     path('surveys/opinions/<int:opinion_id>/', views.SurveyOpinionRetrieveUpdateDestroyView.as_view(), name='survey_opinion_retrieve_update_destroy_view'),
