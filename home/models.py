@@ -50,14 +50,15 @@ def validate_phone_number_regex(mobile_phone_number):
     
 # -------------------------------------------------------------------------------------
 def validate_integer_range(field_value,  field_name, min, max):
+
     pattern = r'^[\d]+$'
 
-    if field_value and not bool(re.match(pattern, field_value)):
+    if not bool(re.match(pattern, str(field_value))):
         raise serializers.ValidationError(
             f"Participant with {field_name}: '{field_value}' must be digit. min value: {min}, max value: {max}"
             )
 
-    if field_value and not (min <= field_value <= max):
+    if not (min <= field_value <= max):
         raise serializers.ValidationError(
             f"Participant with {field_name}: '{field_value}' is not valid. min value: {min}, max value: {max}"
         )
@@ -196,6 +197,21 @@ class Participant(models.Model):
 
 
         super().save(*args, **kwargs)
+
+    def clean(self):
+        try:
+            validate_uniqueness_by_event(self.event, self.mobile_phone_number, 'mobile_phone_number')
+        except serializers.ValidationError:
+            raise ValidationError(
+                f"Participant with the same mobile_phone_number: {self.mobile_phone_number} already exists for this event with event: {self.event.name} with event_id: {self.event.id}, or imported twice")
+
+        try:
+            validate_uniqueness_by_event(self.event, self.email_address, 'email_address')
+        except serializers.ValidationError:
+            raise ValidationError(
+                f"Participant with the same emaile_address: {self.email_address} already exists for this event with event: {self.event.name} with event_id: {self.event.id}, or imported twice")
+            
+        return super().clean()
 
     
     def __str__(self):
