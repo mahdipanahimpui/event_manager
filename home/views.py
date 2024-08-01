@@ -95,7 +95,7 @@ class EventViewSet(Filtration ,viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 # --------------------------------------------------------------------
-class ParticipantListCreateView(Filtration ,generics.ListCreateAPIView):
+class ParticipantListCreateView(Filtration, generics.ListCreateAPIView):
     serializer_class = ParticipantSerializer
     pagination_class = ParticipantPagination
     filtration_class = ParticipantFiltration
@@ -104,6 +104,7 @@ class ParticipantListCreateView(Filtration ,generics.ListCreateAPIView):
     def get_queryset(self):
         event_id = self.kwargs['event_id']
         queryset = Participant.objects.filter(event__id=event_id)
+        queryset = self.filtration_class().list(self.request, queryset)
         return queryset
     
 # -------------------------------------------------------------------
@@ -131,7 +132,9 @@ class MeetingListCreateView(Filtration, generics.ListCreateAPIView):
     def get_queryset(self):
         event_id = self.kwargs['event_id']
         queryset = Meeting.objects.filter(event__id=event_id)
+        queryset = self.filtration_class().list(self.request, queryset)
         return queryset
+    
 
 # ----------------------------------------------------------------------
 class MeetingRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
@@ -593,6 +596,7 @@ class EmailLogListView(Filtration ,generics.ListAPIView):
     def get_queryset(self):
         event_id = self.kwargs['event_id']
         queryset = EmailLog.objects.filter(event__id=event_id)
+        queryset = self.filtration_class().list(self.request, queryset)
         return queryset
     
 # --------------------------------------------------------------------------
