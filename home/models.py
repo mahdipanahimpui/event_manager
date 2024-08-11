@@ -114,7 +114,7 @@ class Participant(models.Model):
         ('ordinary_author', 'ordinary_author'),
         ('student_author', 'student_author'),
         ('ut_student', 'ut_student'),
-        ('ordinary_sutudent', 'ordinary_student'),
+        ('ordinary_student', 'ordinary_student'),
         ('free_participant', 'free_participant')
     )
     EDUCATION_LEVEL_CHOICES = (
