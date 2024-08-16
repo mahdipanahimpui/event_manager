@@ -177,6 +177,8 @@ class MeetingSerializer(serializers.ModelSerializer):
                 
                 except Participant.DoesNotExist:
                     pass
+
+        return instance
             
 
 
