@@ -214,8 +214,8 @@ class SurveyOpinionSerializer(serializers.ModelSerializer):
 
 
     def validate(self, attrs):
-        survey = attrs.get('survey', self.instance.survey)
-        participant = attrs.get('participant', self.instance.survey)
+        survey = attrs.get('survey')
+        participant = attrs.get('participant')
 
         try:
 
