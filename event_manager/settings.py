@@ -241,7 +241,7 @@ SIMPLE_JWT = {
 
 
 
-DOMAIN = 'http://www.127.0.0.1:8000'
+DOMAIN = 'http://www.127.0.0.1:3000'
 
 
 CORS_ALLOWED_ORIGINS = [

@@ -173,10 +173,14 @@ class MeetingSerializer(serializers.ModelSerializer):
                     participant.attendance_time = datetime.datetime.now(pytz.timezone('Asia/Tehran'))
                     participant.save()
                 try:
-                    send_meeting_attendance_email_task.delay(participant, meeting=meeting)
+                    if meeting.sending_attendance_email:
+                        send_meeting_attendance_email_task.delay(participant, meeting=meeting)
                 
-                except Participant.DoesNotExist:
+                except:
                     pass
+            
+            else:
+                raise serializers.ValidationError(f"the participant with id: {participant.id} is already exists")
 
             
 
@@ -186,6 +190,9 @@ class MeetingSerializer(serializers.ModelSerializer):
             if participant in meeting.participants.all():
 
                 meeting.participants.remove(participant)
+
+            else:
+                raise serializers.ValidationError(f"the participant with id: {participant.id} is doesnt exists")
 
         return meeting
     

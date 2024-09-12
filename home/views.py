@@ -440,7 +440,7 @@ class ProfileView(generics.RetrieveUpdateDestroyAPIView):
 
 # --------------------------------------------------------------------------------------------------
 class ExportView(generics.GenericAPIView):
-    # permission_classes = []
+    permission_classes = []
 
     def get(self, request, *args, **kwargs):
         event_id = kwargs['event_id']
@@ -572,6 +572,8 @@ class DocumentCreateView(generics.GenericAPIView):
 
 # -------------------------------------------------------------------------
 class DownloadQrcodeView(generics.GenericAPIView):
+    permission_classes = []
+
     def get(self, request, *args, **kwargs):
         event_id = kwargs['event_id']
         event = get_object_or_404(Event, id=event_id)
