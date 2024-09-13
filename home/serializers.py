@@ -157,6 +157,7 @@ class MeetingSerializer(serializers.ModelSerializer):
         return super().validate(attrs)
 
 
+
     def update(self, instance, validated_data):
         add_participants = validated_data.pop('add_participants', [])
         remove_participants = validated_data.pop('remove_participants', [])
@@ -169,9 +170,9 @@ class MeetingSerializer(serializers.ModelSerializer):
             if participant not in meeting.participants.all():
                 
                 meeting.participants.add(participant)
-                if not participant.attendance_time:
-                    participant.attendance_time = datetime.datetime.now(pytz.timezone('Asia/Tehran'))
-                    participant.save()
+                # if not participant.attendance_time: # NOTE: HASBUG
+                #     participant.attendance_time = datetime.datetime.now(pytz.timezone('Asia/Tehran'))
+                #     participant.save()
                 try:
                     if meeting.sending_attendance_email:
                         send_meeting_attendance_email_task.delay(participant, meeting=meeting)

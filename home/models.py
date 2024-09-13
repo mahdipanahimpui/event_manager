@@ -91,7 +91,7 @@ def get_upload_path(instance, file_name):
 # ------------------------------------------------------------------
 class Event(models.Model):
     name = models.CharField(max_length=255, unique=True)
-    is_active = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
 
     start_date = models.DateField()
     end_date = models.DateField()

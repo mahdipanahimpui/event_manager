@@ -602,7 +602,7 @@ class EmailLogListView(Filtration ,generics.ListAPIView):
         return queryset
     
 # --------------------------------------------------------------------------
-class EmailLogRetrieveView(generics.ListAPIView):
+class EmailLogRetrieveView(generics.RetrieveAPIView):
     queryset = EmailLog.objects.all()
     serializer_class = EmailLogRetrieveSerializer
 
