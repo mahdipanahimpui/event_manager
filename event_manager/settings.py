@@ -242,6 +242,7 @@ SIMPLE_JWT = {
 
 
 DOMAIN = 'http://www.127.0.0.1:3000'
+DOMAIN = 'http://localhost:3000'
 
 
 CORS_ALLOWED_ORIGINS = [

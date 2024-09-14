@@ -42,7 +42,7 @@ def send_meeting_survey_email(participants, event, meeting):
         print(f"sending meeting (id: {meeting.id}, code: {meeting.code}) survey email to [{participant.email_address}] {'>'*5}", end='')
 
         subject = f'{event.name}'
-        link = f'{settings.DOMAIN}/participate_survey/?participant_id={participant.id}&event_id={event.id}&meeting_id={meeting.id}'
+        link = f'{settings.DOMAIN}/participant_survey/?participant_id={participant.id}&event_id={event.id}&meeting_id={meeting.id}'
         title = 'نظرسنجی'
         context = {
             'participant': participant,
