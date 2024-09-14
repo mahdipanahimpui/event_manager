@@ -198,20 +198,20 @@ class Participant(models.Model):
 
         super().save(*args, **kwargs)
 
-    def clean(self):
-        try:
-            validate_uniqueness_by_event(self.event, self.mobile_phone_number, 'mobile_phone_number')
-        except serializers.ValidationError:
-            raise ValidationError(
-                f"Participant with the same mobile_phone_number: {self.mobile_phone_number} already exists for this event with event: {self.event.name} with event_id: {self.event.id}, or imported twice")
+    # def clean(self): NOTE: has Error when change the instance in admin panel
+    #     try:
+    #         validate_uniqueness_by_event(self, self.event, self.mobile_phone_number, 'mobile_phone_number')
+    #     except serializers.ValidationError:
+    #         raise ValidationError(
+    #             f"Participant with the same mobile_phone_number: {self.mobile_phone_number} already exists for this event with event: {self.event.name} with event_id: {self.event.id}, or imported twice")
 
-        try:
-            validate_uniqueness_by_event(self.event, self.email_address, 'email_address')
-        except serializers.ValidationError:
-            raise ValidationError(
-                f"Participant with the same emaile_address: {self.email_address} already exists for this event with event: {self.event.name} with event_id: {self.event.id}, or imported twice")
+    #     try:
+    #         validate_uniqueness_by_event(self.event, self.email_address, 'email_address')
+    #     except serializers.ValidationError:
+    #         raise ValidationError(
+    #             f"Participant with the same emaile_address: {self.email_address} already exists for this event with event: {self.event.name} with event_id: {self.event.id}, or imported twice")
             
-        return super().clean()
+    #     return super().clean()
 
     
     def __str__(self):
