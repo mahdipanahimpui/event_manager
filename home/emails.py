@@ -3,7 +3,8 @@ from event_manager.settings import EMAIL_HOST_USER
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
-from .models import EmailLog
+from .models import EmailLog 
+
 
 # --------------------------------------------------------------------------
 def send_event_survey_email(participants, event):
