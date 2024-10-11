@@ -4,8 +4,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from . tasks import send_meeting_attendance_email_task
 from event_manager.settings import EMAIL_HOST_USER
-import datetime
-import pytz
+
+
 
 from home.models import (
     Event,
@@ -282,7 +282,6 @@ class SurveySelectOptionSerializer(serializers.ModelSerializer):
 # -----------------------------------------------------
 class UserSerializer(serializers.ModelSerializer):        
     confirm_password = serializers.CharField(max_length=128, required=False, write_only=True)
-
     class Meta:
         model = get_user_model()
         fields = [
@@ -355,9 +354,16 @@ class UserSerializer(serializers.ModelSerializer):
     
 
     def create(self, validated_data):
-        validated_data['is_active'] = True
+        validated_data['is_active'] = validated_data.get('is_active', True)
+        is_superuser = validated_data.get('is_superuser', False)
+
         user = super().create(validated_data)
         user = self.set_user_password(user, validated_data)
+
+        if is_superuser:
+            user.is_superuser = is_superuser
+            user.is_staff = is_superuser
+            user.save()
         return user
 
 
